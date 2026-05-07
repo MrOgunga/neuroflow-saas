@@ -3,23 +3,23 @@ const FOCUS_KEY = "neuroflow_daily_anchor_v1";
 
 const defaultTiles = [
   {
-    id: "morning-meds",
-    name: "Morning Meds",
-    icon: "💊",
+    id: "focus-sprint",
+    name: "Focus Sprint",
+    icon: "🧠",
     color: "green",
     cells: [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1]
   },
   {
-    id: "hydration",
-    name: "Hydration",
-    icon: "💧",
+    id: "tidy-reset",
+    name: "Tidy Reset",
+    icon: "🧺",
     color: "blue",
     cells: [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   },
   {
-    id: "reset-task",
-    name: "One Reset Task",
-    icon: "🧹",
+    id: "wind-down",
+    name: "Wind Down",
+    icon: "🌙",
     color: "orange",
     cells: [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0]
   }
@@ -141,13 +141,13 @@ function renderTile(tile) {
 }
 
 function renderPreviewWidgets() {
-  const meds = tiles.find((tile) => tile.id === "morning-meds") || tiles[0];
-  const hydration = tiles.find((tile) => tile.id === "hydration") || tiles[1] || tiles[0];
-  const resetTask = tiles.find((tile) => tile.id === "reset-task") || tiles[2] || tiles[0];
+  const focusSprint = tiles.find((tile) => tile.id === "focus-sprint") || tiles[0];
+  const tidyReset = tiles.find((tile) => tile.id === "tidy-reset") || tiles[1] || tiles[0];
+  const windDown = tiles.find((tile) => tile.id === "wind-down") || tiles[2] || tiles[0];
 
-  if (meds) buildMiniGrid("meds-preview", meds);
-  if (hydration) buildMiniGrid("hydration-preview", hydration);
-  if (resetTask) buildMiniGrid("reset-preview", resetTask);
+  if (focusSprint) buildMiniGrid("focus-preview", focusSprint);
+  if (tidyReset) buildMiniGrid("tidy-preview", tidyReset);
+  if (windDown) buildMiniGrid("winddown-preview", windDown);
 }
 
 function render() {
@@ -200,7 +200,7 @@ clearFocusButton.addEventListener("click", () => {
 });
 
 loadSampleButton.addEventListener("click", () => {
-  focusAnchor = "Take meds, drink water, and finish one small task before switching contexts.";
+  focusAnchor = "Do one focus sprint, one small reset, and make tonight easier than this morning.";
   saveFocusAnchor();
   renderAnchor();
 });
