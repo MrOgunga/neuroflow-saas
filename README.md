@@ -73,6 +73,9 @@ Do not overbuild billing first.
 - `README.md`
 - `product-brief.md`
 - `feature-map.md`
+- `app-phase-roadmap.md`
+- `supabase-data-model.sql`
+- `saas-monetization-flow.md`
 - `index.html`
 - `styles.css`
 - `app.js`
