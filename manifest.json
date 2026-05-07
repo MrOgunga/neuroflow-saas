@@ -1,0 +1,9 @@
+{
+  "name": "Neuroflow",
+  "short_name": "Neuroflow",
+  "description": "A calmer progress system for ADHD adults.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#05070b",
+  "theme_color": "#06080c"
+}

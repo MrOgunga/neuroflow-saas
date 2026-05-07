@@ -6,71 +6,137 @@
     <title>Neuroflow</title>
     <meta
       name="description"
-      content="A calmer progress system for ADHD and neurodivergent users."
+      content="A calmer progress system for ADHD adults who need visible momentum without guilt."
     />
+    <meta name="theme-color" content="#06080c" />
+    <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="shell">
-      <section class="hero">
+      <section class="hero-band">
         <div class="hero-copy">
           <p class="eyebrow">Neuroflow</p>
-          <h1>A calmer progress system for brains that do not work in straight lines.</h1>
+          <h1>A calmer progress system for ADHD adults who need movement, not pressure.</h1>
           <p class="subcopy">
-            Visual focus tiles, low-friction tracking, and gentle recovery after missed days.
-            Built for ADHD and neurodivergent users who want momentum without shame.
+            Track tiny wins visually, reset without guilt, and create a homepage that helps your
+            brain restart instead of spiraling.
           </p>
           <div class="hero-actions">
             <button class="primary-btn" id="add-tile-button">Add Focus Tile</button>
             <button class="ghost-btn" id="reset-week-button">Gentle Reset</button>
+            <button class="ghost-btn" id="install-app-button" hidden>Install on Desktop</button>
           </div>
         </div>
-        <div class="hero-panel">
-          <div class="hero-stat">
-            <span class="label">Today's aim</span>
-            <strong>Small wins, visible progress</strong>
+
+        <div class="hero-widget">
+          <div class="widget-card widget-green">
+            <div class="widget-head">
+              <span>💊</span>
+              <strong>Morning Meds</strong>
+            </div>
+            <div class="mini-grid" id="meds-preview"></div>
           </div>
-          <div class="hero-stat">
-            <span class="label">MVP mode</span>
-            <strong>Track first, optimize later</strong>
+          <div class="widget-card widget-blue">
+            <div class="widget-head">
+              <span>💧</span>
+              <strong>Hydration</strong>
+            </div>
+            <div class="mini-grid" id="hydration-preview"></div>
+          </div>
+          <div class="widget-card widget-orange">
+            <div class="widget-head">
+              <span>🧹</span>
+              <strong>One Reset Task</strong>
+            </div>
+            <div class="mini-grid" id="reset-preview"></div>
           </div>
         </div>
       </section>
 
-      <section class="dashboard">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Focus Tiles</p>
-            <h2>Your momentum board</h2>
+      <section class="dashboard-grid">
+        <section class="panel app-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Focus Tiles</p>
+              <h2>Your momentum board</h2>
+            </div>
+            <p class="section-note">Tap each square when you make progress. Missed days are allowed.</p>
           </div>
-          <p class="section-note">Tap each square as you make progress. No perfect streak pressure.</p>
-        </div>
+          <div class="tile-grid" id="tile-grid"></div>
+        </section>
 
-        <div class="tile-grid" id="tile-grid"></div>
+        <aside class="side-stack">
+          <section class="panel">
+            <div class="section-head section-head-tight">
+              <div>
+                <p class="eyebrow">Daily Reset</p>
+                <h2>Keep today tiny</h2>
+              </div>
+            </div>
+            <label class="focus-label" for="focus-input">What would make today feel less chaotic?</label>
+            <textarea
+              id="focus-input"
+              class="focus-input"
+              placeholder="Example: Take meds, answer one email, and drink a full bottle of water."
+            ></textarea>
+            <button class="primary-btn full-width" id="save-focus-button">Save Today’s Anchor</button>
+          </section>
+
+          <section class="panel">
+            <div class="section-head section-head-tight">
+              <div>
+                <p class="eyebrow">Gentle Signals</p>
+                <h2>Weekly view</h2>
+              </div>
+            </div>
+            <div class="insight-cards">
+              <article class="insight-card">
+                <span class="label">Tiles active</span>
+                <strong id="tiles-active">0</strong>
+              </article>
+              <article class="insight-card">
+                <span class="label">Completions</span>
+                <strong id="total-completions">0</strong>
+              </article>
+              <article class="insight-card">
+                <span class="label">Current tone</span>
+                <strong id="support-message">You only need one next step.</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head section-head-tight">
+              <div>
+                <p class="eyebrow">Recovery Mode</p>
+                <h2>When things slip</h2>
+              </div>
+            </div>
+            <p class="recovery-copy">
+              Missing a day does not mean you failed. The point is to re-enter quickly, not to
+              prove perfection.
+            </p>
+            <div class="recovery-actions">
+              <button class="ghost-btn" id="clear-focus-button">Clear Today’s Anchor</button>
+              <button class="ghost-btn" id="load-sample-button">Load Calm Defaults</button>
+            </div>
+          </section>
+        </aside>
       </section>
 
-      <section class="insights">
+      <section class="panel reflection-panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Weekly View</p>
-            <h2>Gentle signals</h2>
+            <p class="eyebrow">Today’s Anchor</p>
+            <h2>One thing worth protecting</h2>
           </div>
         </div>
-
-        <div class="insight-cards">
-          <article class="insight-card">
-            <span class="label">Tiles active</span>
-            <strong id="tiles-active">0</strong>
-          </article>
-          <article class="insight-card">
-            <span class="label">Completions</span>
-            <strong id="total-completions">0</strong>
-          </article>
-          <article class="insight-card">
-            <span class="label">Message</span>
-            <strong id="support-message">You only need one next step.</strong>
-          </article>
-        </div>
+        <p class="anchor-text" id="anchor-text">You haven’t saved a daily anchor yet.</p>
+        <p class="anchor-note">
+          Later, we can connect reminders, onboarding, and subscriptions. For this MVP, everything
+          stays fast and local on your device.
+        </p>
       </section>
     </main>
 

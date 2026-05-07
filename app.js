@@ -1,9 +1,28 @@
-const STORAGE_KEY = "neuroflow_tiles_v1";
+const STORAGE_KEY = "neuroflow_tiles_v2";
+const FOCUS_KEY = "neuroflow_daily_anchor_v1";
 
 const defaultTiles = [
-  { id: "reading", name: "Reading", icon: "📚", color: "green", cells: [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1] },
-  { id: "no-junk-food", name: "No Junk Food", icon: "🥗", color: "blue", cells: [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-  { id: "running", name: "Running", icon: "🏃", color: "orange", cells: [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0] }
+  {
+    id: "morning-meds",
+    name: "Morning Meds",
+    icon: "💊",
+    color: "green",
+    cells: [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1]
+  },
+  {
+    id: "hydration",
+    name: "Hydration",
+    icon: "💧",
+    color: "blue",
+    cells: [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+    id: "reset-task",
+    name: "One Reset Task",
+    icon: "🧹",
+    color: "orange",
+    cells: [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0]
+  }
 ];
 
 const tileGrid = document.getElementById("tile-grid");
@@ -13,6 +32,14 @@ const totalCompletions = document.getElementById("total-completions");
 const supportMessage = document.getElementById("support-message");
 const addTileButton = document.getElementById("add-tile-button");
 const resetWeekButton = document.getElementById("reset-week-button");
+const installAppButton = document.getElementById("install-app-button");
+const saveFocusButton = document.getElementById("save-focus-button");
+const clearFocusButton = document.getElementById("clear-focus-button");
+const loadSampleButton = document.getElementById("load-sample-button");
+const focusInput = document.getElementById("focus-input");
+const anchorText = document.getElementById("anchor-text");
+
+let deferredPrompt = null;
 
 function loadTiles() {
   try {
@@ -23,10 +50,23 @@ function loadTiles() {
   }
 }
 
+function loadFocusAnchor() {
+  try {
+    return localStorage.getItem(FOCUS_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
 let tiles = loadTiles();
+let focusAnchor = loadFocusAnchor();
 
 function saveTiles() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tiles));
+}
+
+function saveFocusAnchor() {
+  localStorage.setItem(FOCUS_KEY, focusAnchor);
 }
 
 function getCompletionCount() {
@@ -35,9 +75,9 @@ function getCompletionCount() {
 
 function getSupportCopy(count) {
   if (count === 0) return "You only need one next step.";
-  if (count < 8) return "Momentum is still momentum, even when it is small.";
-  if (count < 18) return "You are building proof, not perfection.";
-  return "This is what steady effort can look like.";
+  if (count < 8) return "Momentum still counts, even when it looks tiny.";
+  if (count < 18) return "This is progress, not a performance review.";
+  return "You are building visible proof that you can return.";
 }
 
 function renderStats() {
@@ -45,6 +85,22 @@ function renderStats() {
   tilesActive.textContent = String(tiles.length);
   totalCompletions.textContent = String(total);
   supportMessage.textContent = getSupportCopy(total);
+}
+
+function renderAnchor() {
+  focusInput.value = focusAnchor;
+  anchorText.textContent = focusAnchor || "You haven’t saved a daily anchor yet.";
+}
+
+function buildMiniGrid(id, tile) {
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  tile.cells.slice(0, 21).forEach((isActive) => {
+    const cell = document.createElement("span");
+    cell.className = `mini-cell${isActive ? ` active ${tile.color}` : ""}`;
+    wrap.appendChild(cell);
+  });
 }
 
 function toggleCell(tileId, cellIndex) {
@@ -84,12 +140,24 @@ function renderTile(tile) {
   return fragment;
 }
 
+function renderPreviewWidgets() {
+  const meds = tiles.find((tile) => tile.id === "morning-meds") || tiles[0];
+  const hydration = tiles.find((tile) => tile.id === "hydration") || tiles[1] || tiles[0];
+  const resetTask = tiles.find((tile) => tile.id === "reset-task") || tiles[2] || tiles[0];
+
+  if (meds) buildMiniGrid("meds-preview", meds);
+  if (hydration) buildMiniGrid("hydration-preview", hydration);
+  if (resetTask) buildMiniGrid("reset-preview", resetTask);
+}
+
 function render() {
   tileGrid.innerHTML = "";
   tiles.forEach((tile) => {
     tileGrid.appendChild(renderTile(tile));
   });
   renderStats();
+  renderAnchor();
+  renderPreviewWidgets();
 }
 
 addTileButton.addEventListener("click", () => {
@@ -118,5 +186,43 @@ resetWeekButton.addEventListener("click", () => {
   saveTiles();
   render();
 });
+
+saveFocusButton.addEventListener("click", () => {
+  focusAnchor = focusInput.value.trim();
+  saveFocusAnchor();
+  renderAnchor();
+});
+
+clearFocusButton.addEventListener("click", () => {
+  focusAnchor = "";
+  saveFocusAnchor();
+  renderAnchor();
+});
+
+loadSampleButton.addEventListener("click", () => {
+  focusAnchor = "Take meds, drink water, and finish one small task before switching contexts.";
+  saveFocusAnchor();
+  renderAnchor();
+});
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredPrompt = event;
+  installAppButton.hidden = false;
+});
+
+installAppButton.addEventListener("click", async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installAppButton.hidden = true;
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  });
+}
 
 render();
