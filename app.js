@@ -3,23 +3,23 @@ const FOCUS_KEY = "neuroflow_daily_anchor_v1";
 
 const defaultTiles = [
   {
-    id: "focus-sprint",
-    name: "Focus Sprint",
+    id: "deep-focus",
+    name: "Deep Focus",
     icon: "🧠",
     color: "green",
     cells: [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1]
   },
   {
-    id: "tidy-reset",
-    name: "Tidy Reset",
-    icon: "🧺",
+    id: "move-my-body",
+    name: "Move My Body",
+    icon: "🏃",
     color: "blue",
     cells: [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   },
   {
-    id: "wind-down",
-    name: "Wind Down",
-    icon: "🌙",
+    id: "brain-dump",
+    name: "Brain Dump",
+    icon: "📝",
     color: "orange",
     cells: [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0]
   }
@@ -141,13 +141,13 @@ function renderTile(tile) {
 }
 
 function renderPreviewWidgets() {
-  const focusSprint = tiles.find((tile) => tile.id === "focus-sprint") || tiles[0];
-  const tidyReset = tiles.find((tile) => tile.id === "tidy-reset") || tiles[1] || tiles[0];
-  const windDown = tiles.find((tile) => tile.id === "wind-down") || tiles[2] || tiles[0];
+  const deepFocus = tiles.find((tile) => tile.id === "deep-focus") || tiles[0];
+  const moveMyBody = tiles.find((tile) => tile.id === "move-my-body") || tiles[1] || tiles[0];
+  const brainDump = tiles.find((tile) => tile.id === "brain-dump") || tiles[2] || tiles[0];
 
-  if (focusSprint) buildMiniGrid("focus-preview", focusSprint);
-  if (tidyReset) buildMiniGrid("tidy-preview", tidyReset);
-  if (windDown) buildMiniGrid("winddown-preview", windDown);
+  if (deepFocus) buildMiniGrid("focus-preview", deepFocus);
+  if (moveMyBody) buildMiniGrid("tidy-preview", moveMyBody);
+  if (brainDump) buildMiniGrid("winddown-preview", brainDump);
 }
 
 function render() {
@@ -200,7 +200,7 @@ clearFocusButton.addEventListener("click", () => {
 });
 
 loadSampleButton.addEventListener("click", () => {
-  focusAnchor = "Do one focus sprint, one small reset, and make tonight easier than this morning.";
+  focusAnchor = "Do deep focus for a bit, move my body, and empty my mind onto the page.";
   saveFocusAnchor();
   renderAnchor();
 });
