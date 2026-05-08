@@ -1,5 +1,5 @@
-const STORAGE_KEY = "neuroflow_tiles_v3";
-const FOCUS_KEY = "neuroflow_daily_anchor_v2";
+const STORAGE_KEY = "neuroflow_tiles_v4";
+const FOCUS_KEY = "neuroflow_daily_anchor_v3";
 const TOTAL_DAYS = 31;
 
 const defaultTiles = [
