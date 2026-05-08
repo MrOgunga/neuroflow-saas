@@ -43,11 +43,20 @@ const emailInput = document.getElementById("email-input");
 const magicLinkButton = document.getElementById("magic-link-button");
 const signOutButton = document.getElementById("sign-out-button");
 const authStatus = document.getElementById("auth-status");
+const iosInstallNote = document.getElementById("ios-install-note");
 
 let deferredPrompt = null;
 let deferredSyncTimer = null;
 let supabase = null;
 let currentSession = null;
+
+function isIosSafari() {
+  const ua = window.navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isWebkit = /WebKit/.test(ua);
+  const isCriOS = /CriOS/.test(ua);
+  return isIOS && isWebkit && !isCriOS;
+}
 
 function normalizeTile(tile) {
   const cells = Array.isArray(tile.cells) ? [...tile.cells] : [];
@@ -428,6 +437,10 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   });
+}
+
+if (isIosSafari() && iosInstallNote) {
+  iosInstallNote.hidden = false;
 }
 
 render();
