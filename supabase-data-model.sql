@@ -8,7 +8,7 @@ create table if not exists profiles (
 );
 
 create table if not exists trackers (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   user_id uuid not null references profiles(id) on delete cascade,
   title text not null,
   icon text not null default '✨',
@@ -20,7 +20,7 @@ create table if not exists trackers (
 
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),
-  tracker_id uuid not null references trackers(id) on delete cascade,
+  tracker_id text not null references trackers(id) on delete cascade,
   day_index integer not null check (day_index >= 0 and day_index <= 30),
   completed boolean not null default false,
   updated_at timestamptz not null default now(),

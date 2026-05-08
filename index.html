@@ -14,6 +14,26 @@
   </head>
   <body>
     <main class="shell">
+      <section class="auth-strip panel">
+        <div class="auth-copy">
+          <p class="eyebrow">App Phase</p>
+          <h2>Use it as a guest, or connect your account when you are ready.</h2>
+          <p class="section-note" id="auth-status">
+            Guest mode is active. Your progress is currently saved only on this device.
+          </p>
+        </div>
+        <div class="auth-actions">
+          <input
+            id="email-input"
+            class="email-input"
+            type="email"
+            placeholder="Enter your email for magic link sign-in"
+          />
+          <button class="primary-btn" id="magic-link-button">Send Magic Link</button>
+          <button class="ghost-btn" id="sign-out-button" hidden>Sign Out</button>
+        </div>
+      </section>
+
       <section class="hero-band">
         <div class="hero-copy">
           <p class="eyebrow">Neuroflow</p>
@@ -153,6 +173,8 @@
       </article>
     </template>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
