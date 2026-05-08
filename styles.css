@@ -258,6 +258,18 @@ button:hover {
   margin-top: 22px;
 }
 
+.empty-board {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  color: var(--muted);
+}
+
+.empty-board p {
+  margin: 0 0 12px;
+}
+
 .tile-card {
   border-radius: 28px;
   padding: 18px;

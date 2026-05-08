@@ -33,6 +33,7 @@ const totalCompletions = document.getElementById("total-completions");
 const supportMessage = document.getElementById("support-message");
 const addTileButton = document.getElementById("add-tile-button");
 const resetWeekButton = document.getElementById("reset-week-button");
+const restoreDefaultsButton = document.getElementById("restore-defaults-button");
 const installAppButton = document.getElementById("install-app-button");
 const saveFocusButton = document.getElementById("save-focus-button");
 const clearFocusButton = document.getElementById("clear-focus-button");
@@ -44,6 +45,7 @@ const magicLinkButton = document.getElementById("magic-link-button");
 const signOutButton = document.getElementById("sign-out-button");
 const authStatus = document.getElementById("auth-status");
 const iosInstallNote = document.getElementById("ios-install-note");
+const emptyBoard = document.getElementById("empty-board");
 
 let deferredPrompt = null;
 let deferredSyncTimer = null;
@@ -182,6 +184,9 @@ function renderPreviewWidgets() {
 
 function render() {
   tiles = ensureTilesExist(tiles);
+  if (emptyBoard) {
+    emptyBoard.hidden = tiles.length > 0;
+  }
   tileGrid.innerHTML = "";
   tiles.forEach((tile) => {
     tileGrid.appendChild(renderTile(tile));
@@ -400,6 +405,11 @@ clearFocusButton.addEventListener("click", () => {
 
 loadSampleButton.addEventListener("click", () => {
   focusAnchor = "Do deep focus for a bit, move my body, and empty my mind onto the page.";
+  persistAndRender();
+});
+
+restoreDefaultsButton.addEventListener("click", () => {
+  tiles = getDefaultTiles();
   persistAndRender();
 });
 
