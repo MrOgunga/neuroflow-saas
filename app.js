@@ -67,13 +67,24 @@ function normalizeTile(tile) {
   };
 }
 
+function getDefaultTiles() {
+  return defaultTiles.map(normalizeTile);
+}
+
+function ensureTilesExist(candidateTiles) {
+  return Array.isArray(candidateTiles) && candidateTiles.length > 0 ? candidateTiles : getDefaultTiles();
+}
+
 function loadTiles() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const parsed = saved ? JSON.parse(saved) : defaultTiles;
-    return parsed.map(normalizeTile);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return getDefaultTiles();
+    }
+    return ensureTilesExist(parsed.map(normalizeTile));
   } catch {
-    return defaultTiles.map(normalizeTile);
+    return getDefaultTiles();
   }
 }
 
@@ -170,6 +181,7 @@ function renderPreviewWidgets() {
 }
 
 function render() {
+  tiles = ensureTilesExist(tiles);
   tileGrid.innerHTML = "";
   tiles.forEach((tile) => {
     tileGrid.appendChild(renderTile(tile));
@@ -287,7 +299,9 @@ async function loadFromCloud() {
   if (trackerError) throw trackerError;
 
   if (!trackerRows || trackerRows.length === 0) {
+    tiles = ensureTilesExist(tiles);
     await syncToCloud();
+    render();
     return;
   }
 
@@ -299,7 +313,8 @@ async function loadFromCloud() {
 
   if (entryError) throw entryError;
 
-  tiles = trackerRows.map((row) => {
+  tiles = ensureTilesExist(
+    trackerRows.map((row) => {
     const base = new Array(TOTAL_DAYS).fill(0);
     entryRows
       .filter((entry) => entry.tracker_id === row.id)
@@ -314,7 +329,8 @@ async function loadFromCloud() {
       color: row.color,
       cells: base
     });
-  });
+    })
+  );
 
   focusAnchor = localStorage.getItem("neuroflow_cloud_anchor") || focusAnchor;
   saveTilesLocal();
@@ -445,5 +461,8 @@ if (isIosSafari() && iosInstallNote) {
 
 render();
 initSupabase().catch(() => {
+  tiles = ensureTilesExist(tiles);
+  saveTilesLocal();
+  render();
   setAuthMessage("Guest mode is active. Supabase can be connected when you are ready.");
 });
