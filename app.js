@@ -59,6 +59,9 @@ const syncNowButton = document.getElementById("sync-now-button");
 const signOutButton = document.getElementById("sign-out-button");
 const authStatus = document.getElementById("auth-status");
 const syncStatus = document.getElementById("sync-status");
+const authProgress = document.getElementById("auth-progress");
+const authProgressFill = document.getElementById("auth-progress-fill");
+const authProgressText = document.getElementById("auth-progress-text");
 const accountPill = document.getElementById("account-pill");
 const iosInstallNote = document.getElementById("ios-install-note");
 const emptyBoard = document.getElementById("empty-board");
@@ -73,6 +76,7 @@ const overviewBadge = document.getElementById("overview-badge");
 let deferredPrompt = null;
 let syncTimer = null;
 let currentUser = null;
+let magicLinkProgressTimer = null;
 
 const supabaseConfig = window.NEUROFLOW_SUPABASE_CONFIG || {};
 const supabaseClient =
@@ -138,6 +142,48 @@ function setAuthMessage(message) {
 
 function setSyncMessage(message) {
   if (syncStatus) syncStatus.textContent = message;
+}
+
+function setMagicLinkLoadingState(isLoading, options = {}) {
+  const { percent = 0, label = "Preparing your sign-in link..." } = options;
+
+  if (magicLinkButton) {
+    magicLinkButton.disabled = isLoading;
+    magicLinkButton.classList.toggle("loading", isLoading);
+    magicLinkButton.textContent = isLoading ? `Sending... ${percent}%` : "Send Magic Link";
+  }
+
+  if (authProgress) authProgress.hidden = !isLoading;
+  if (authProgressFill) authProgressFill.style.width = `${percent}%`;
+  if (authProgressText) authProgressText.textContent = label;
+}
+
+function startMagicLinkProgress() {
+  window.clearInterval(magicLinkProgressTimer);
+  const steps = [
+    { percent: 18, label: "Checking your email address..." },
+    { percent: 42, label: "Talking to secure sign-in..." },
+    { percent: 74, label: "Preparing your magic link..." },
+    { percent: 92, label: "Almost done..." }
+  ];
+
+  let index = 0;
+  setMagicLinkLoadingState(true, steps[index]);
+
+  magicLinkProgressTimer = window.setInterval(() => {
+    index += 1;
+    if (index >= steps.length) {
+      window.clearInterval(magicLinkProgressTimer);
+      return;
+    }
+    setMagicLinkLoadingState(true, steps[index]);
+  }, 450);
+}
+
+function stopMagicLinkProgress() {
+  window.clearInterval(magicLinkProgressTimer);
+  magicLinkProgressTimer = null;
+  setMagicLinkLoadingState(false);
 }
 
 function getCompletionCount() {
@@ -705,6 +751,7 @@ if (magicLinkButton) {
     }
 
     try {
+      startMagicLinkProgress();
       setAuthMessage(`Sending a magic link to ${email}...`);
       const { error } = await supabaseClient.auth.signInWithOtp({
         email,
@@ -714,11 +761,20 @@ if (magicLinkButton) {
       });
 
       if (error) throw error;
+      setMagicLinkLoadingState(true, {
+        percent: 100,
+        label: `Magic link sent to ${email}. Check your inbox now.`
+      });
       setAuthMessage(`Magic link sent to ${email}. Open it on this device to finish sign-in.`);
       setSyncMessage("Once you’re in, we’ll load your cloud boards here.");
+      window.setTimeout(() => {
+        stopMagicLinkProgress();
+      }, 1200);
     } catch (error) {
       console.error(error);
-      setAuthMessage("We couldn’t send the magic link yet. Guest mode still works locally.");
+      stopMagicLinkProgress();
+      const reason = error?.message ? `Reason: ${error.message}` : "Please try again in a moment.";
+      setAuthMessage(`We couldn’t send the magic link yet. ${reason}`);
     }
   });
 }

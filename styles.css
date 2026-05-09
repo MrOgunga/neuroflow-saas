@@ -94,6 +94,36 @@ textarea {
   justify-content: flex-end;
 }
 
+.auth-progress {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.auth-progress-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #48a7ff 0%, #46ff7f 100%);
+  box-shadow: 0 0 18px rgba(72, 167, 255, 0.28);
+  transition: width 220ms ease;
+}
+
+.auth-progress-text {
+  margin: 10px 0 0;
+  color: #c8d8ff;
+  font-size: 0.92rem;
+}
+
 .email-input {
   min-width: min(360px, 100%);
   border-radius: 14px;
@@ -187,6 +217,11 @@ button:hover {
 .primary-btn {
   background: linear-gradient(180deg, rgba(70, 255, 127, 0.2), rgba(70, 255, 127, 0.06));
   box-shadow: 0 0 0 1px rgba(70, 255, 127, 0.18), 0 12px 24px rgba(70, 255, 127, 0.14);
+}
+
+.primary-btn.loading {
+  background: linear-gradient(180deg, rgba(72, 167, 255, 0.28), rgba(72, 167, 255, 0.1));
+  box-shadow: 0 0 0 1px rgba(72, 167, 255, 0.2), 0 12px 24px rgba(72, 167, 255, 0.16);
 }
 
 .ghost-btn {
