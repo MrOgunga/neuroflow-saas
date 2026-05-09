@@ -56,7 +56,7 @@ Stabilize and ship the first app-phase version:
 
 1. verify magic-link sign-in works fully
 2. verify tracker sync writes and reads correctly
-3. push the latest changes to GitHub
+3. confirm the hosted auth flow works as expected
 4. confirm the hosted Vercel build updates correctly
 5. then continue with onboarding, settings, and cloud-backed daily anchor
 
@@ -67,3 +67,4 @@ Stabilize and ship the first app-phase version:
 - the auth email still uses Supabase default branding for now
 - the app is currently a web app / PWA, not a native mobile app yet
 - the new working checklist lives in `BUILD-CHECKLIST.md`
+- the latest polished app-phase build has been pushed to GitHub and deployed to Vercel

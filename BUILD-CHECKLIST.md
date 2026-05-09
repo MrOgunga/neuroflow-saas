@@ -26,8 +26,8 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 - [ ] verify full magic-link sign-in flow on local and hosted app
 - [ ] verify cloud sync reads and writes correctly from Supabase tables
 - [ ] confirm redirect URLs are correct in Supabase auth settings
-- [ ] push latest app-phase changes to GitHub
-- [ ] deploy latest app-phase changes to Vercel
+- [x] push latest app-phase changes to GitHub
+- [x] deploy latest app-phase changes to Vercel
 
 ### Next Build Priorities
 
@@ -56,8 +56,8 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 
 - [ ] confirm auth works
 - [ ] confirm sync works
-- [ ] push to GitHub
-- [ ] verify hosted build
+- [x] push to GitHub
+- [x] verify hosted build
 
 ### Phase 2: Make It Feel Like A Real Product
 
@@ -84,7 +84,7 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 
 Right now, the most important immediate move is:
 
-1. test auth and sync in the app
-2. push this version to GitHub
-3. update the hosted Vercel build
-4. then improve the signed-in product experience
+1. test auth and sync in the live app
+2. confirm the mobile experience feels right
+3. then improve the signed-in product experience
+4. then start monetization and publicity setup
