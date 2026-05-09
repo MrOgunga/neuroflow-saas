@@ -16,7 +16,7 @@ Open the SQL editor in Supabase and paste:
 Run it once.
 
 If you already ran an older version of the schema, run the latest file again so the `daily_anchors`
-table and its policies are added.
+table, the tracker `view_mode` column, and the 365-day `tracker_entries` constraint are added.
 
 ## 3. Turn On Email Auth
 
@@ -64,7 +64,7 @@ After adding the keys:
 
 - guest mode still works
 - local progress still works
-- signed-in users can sync tracker boards and the daily anchor
+- signed-in users can sync tracker boards, view modes, and the daily anchor
 
 ## Important Note
 

@@ -13,6 +13,7 @@ create table if not exists trackers (
   title text not null,
   icon text not null default '✨',
   color text not null default 'green',
+  view_mode text not null default 'year',
   position integer not null default 0,
   archived boolean not null default false,
   created_at timestamptz not null default now()
@@ -21,11 +22,21 @@ create table if not exists trackers (
 create table if not exists tracker_entries (
   id uuid primary key default gen_random_uuid(),
   tracker_id text not null references trackers(id) on delete cascade,
-  day_index integer not null check (day_index >= 0 and day_index <= 30),
+  day_index integer not null check (day_index >= 0 and day_index <= 364),
   completed boolean not null default false,
   updated_at timestamptz not null default now(),
   unique (tracker_id, day_index)
 );
+
+alter table trackers
+  add column if not exists view_mode text not null default 'year';
+
+alter table tracker_entries
+  drop constraint if exists tracker_entries_day_index_check;
+
+alter table tracker_entries
+  add constraint tracker_entries_day_index_check
+  check (day_index >= 0 and day_index <= 364);
 
 create table if not exists daily_anchors (
   user_id uuid primary key references profiles(id) on delete cascade,

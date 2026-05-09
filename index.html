@@ -10,7 +10,7 @@
     />
     <meta name="theme-color" content="#06080c" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=20260509c" />
+    <link rel="stylesheet" href="styles.css?v=20260509d" />
   </head>
   <body>
     <main class="shell">
@@ -145,7 +145,7 @@
                 class="text-input"
                 type="text"
                 maxlength="32"
-                placeholder="To-do list, journaling, exercising..."
+                placeholder="Journaling, movement, reading..."
               />
               <select id="tile-icon-select" class="select-input" aria-label="Choose tile icon">
                 <option value="✨">✨ Spark</option>
@@ -158,12 +158,22 @@
                 <option value="📘">📘 Read</option>
               </select>
               <select id="tile-color-select" class="select-input" aria-label="Choose tile color">
-                <option value="green">Green</option>
-                <option value="blue">Blue</option>
-                <option value="orange">Orange</option>
+                <option value="neon">Neon Green</option>
+                <option value="sky">Cool Blue</option>
+                <option value="ember">Warm Orange</option>
+                <option value="pearl">Soft White</option>
+                <option value="aurora">Mint Glow</option>
+                <option value="sunset">Rose Glow</option>
+              </select>
+              <select id="tile-view-select" class="select-input" aria-label="Choose tile view">
+                <option value="year">Year View</option>
+                <option value="focus">Focus View</option>
               </select>
               <button class="primary-btn" id="create-tile-button">Create Tile</button>
             </div>
+            <p class="section-note tile-creator-note">
+              Each tile can now switch between a full year glow view and a tighter 31-day focus view.
+            </p>
           </section>
           <div class="empty-board" id="empty-board" hidden>
             <p>Your boards are missing right now. Restore the default set and keep going.</p>
@@ -255,20 +265,28 @@
             <span class="tile-icon"></span>
             <h3 class="tile-title"></h3>
           </div>
-          <span class="tile-count"></span>
+          <div class="tile-head-meta">
+            <span class="tile-count"></span>
+            <button type="button" class="ghost-btn tile-edit-btn">Customize</button>
+          </div>
         </div>
         <div class="tile-range"></div>
+        <div class="tile-pills">
+          <span class="tile-pill tile-view-pill"></span>
+          <span class="tile-pill tile-theme-pill"></span>
+        </div>
         <div class="weekday-strip"></div>
         <div class="cells"></div>
+        <div class="tile-editor" hidden></div>
         <div class="tile-meta">
-          <span class="tile-meta-label">Current streak</span>
+          <span class="tile-meta-label">Best streak</span>
           <strong class="tile-streak"></strong>
         </div>
       </article>
     </template>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js?v=20260509c"></script>
-    <script src="app.js?v=20260509c"></script>
+    <script src="supabase-config.js?v=20260509d"></script>
+    <script src="app.js?v=20260509d"></script>
   </body>
 </html>

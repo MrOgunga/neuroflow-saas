@@ -16,7 +16,7 @@ GitHub Repo:
 
 - audience: general ADHD adults
 - style: dark, glowing, glassy tracker interface
-- core interaction: visual 31-day tracker cards
+- core interaction: visual 365-day tracker cards with year and focus views
 - homepage preview: single 365-day glowing year card that showcases customization
 - current default cards:
   - `Deep Focus`
@@ -35,6 +35,7 @@ GitHub Repo:
 - cloud-backed daily anchor sync for signed-in users
 - clearer signed-in / signed-out UI states
 - simplified hero with a single 365-day year-view customization preview
+- richer tile customization with theme selection and year/focus tile views
 - SaaS monetization roadmap
 
 ## Updated Product Description
@@ -63,8 +64,9 @@ Stabilize and ship the first app-phase version:
 3. confirm the hosted auth flow works as expected
 4. confirm the hosted Vercel build updates correctly
 5. confirm the latest schema is applied so `daily_anchors` exists in Supabase
-6. then continue with onboarding, settings, and cleaner tile management
-7. keep the homepage explaining the product visually with the year-view preview
+6. verify the latest schema is applied so signed-in users get 365-day boards and `view_mode`
+7. then continue with onboarding, settings, and profile decisions
+8. keep the homepage and actual boards aligned around the year-view customization story
 
 ## Notes
 

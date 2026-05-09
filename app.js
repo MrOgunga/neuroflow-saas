@@ -1,38 +1,74 @@
 const STORAGE_KEY = "neuroflow_tiles_v5";
 const FOCUS_KEY = "neuroflow_daily_anchor_v4";
-const TOTAL_DAYS = 31;
+const TOTAL_DAYS = 365;
+const FOCUS_VIEW_DAYS = 31;
 const SYNC_DEBOUNCE_MS = 900;
 const TRACKER_ID_PREFIX = "tracker";
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat(undefined, { weekday: "short" });
 const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short" });
+const MONTH_WITH_YEAR_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit" });
+
+const THEME_OPTIONS = [
+  { id: "neon", label: "Neon Green" },
+  { id: "sky", label: "Cool Blue" },
+  { id: "ember", label: "Warm Orange" },
+  { id: "pearl", label: "Soft White" },
+  { id: "aurora", label: "Mint Glow" },
+  { id: "sunset", label: "Rose Glow" }
+];
+
+const VIEW_OPTIONS = [
+  { id: "year", label: "Year View" },
+  { id: "focus", label: "Focus View" }
+];
+
+const LEGACY_THEME_ALIASES = {
+  green: "neon",
+  blue: "sky",
+  orange: "ember",
+  white: "pearl"
+};
 
 const legacyTileMigrations = {
-  "deep-focus": { id: "to-do-list", name: "To-Do List", icon: "✅", color: "green" },
-  "move-my-body": { id: "journaling", name: "Journaling", icon: "📝", color: "blue" },
-  "brain-dump": { id: "exercising", name: "Exercising", icon: "🏃", color: "orange" }
+  "deep-focus": { id: "to-do-list", name: "To-Do List", icon: "✅", color: "neon", viewMode: "focus" },
+  "move-my-body": { id: "journaling", name: "Journaling", icon: "📝", color: "sky", viewMode: "year" },
+  "brain-dump": { id: "exercising", name: "Exercising", icon: "🏃", color: "ember", viewMode: "focus" }
 };
+
+function buildSeedCells(pattern) {
+  return Array.from({ length: TOTAL_DAYS }, (_, index) => {
+    const isPrimary = index % pattern.primary === 0;
+    const isSecondary = pattern.secondary ? index % pattern.secondary === 0 : false;
+    const isRecentBoost = index > TOTAL_DAYS - 56 && index % pattern.recent === 0;
+    return Number(isPrimary || isSecondary || isRecentBoost);
+  });
+}
 
 const defaultTiles = [
   {
     id: "to-do-list",
     name: "To-Do List",
     icon: "✅",
-    color: "green",
-    cells: [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
+    color: "neon",
+    viewMode: "focus",
+    cells: buildSeedCells({ primary: 3, secondary: 11, recent: 2 })
   },
   {
     id: "journaling",
     name: "Journaling",
     icon: "📝",
-    color: "blue",
-    cells: [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
+    color: "sky",
+    viewMode: "year",
+    cells: buildSeedCells({ primary: 5, secondary: 13, recent: 3 })
   },
   {
     id: "exercising",
     name: "Exercising",
     icon: "🏃",
-    color: "orange",
-    cells: [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1]
+    color: "ember",
+    viewMode: "focus",
+    cells: buildSeedCells({ primary: 4, secondary: 9, recent: 3 })
   }
 ];
 
@@ -46,6 +82,7 @@ const createTileButton = document.getElementById("create-tile-button");
 const tileNameInput = document.getElementById("tile-name-input");
 const tileIconSelect = document.getElementById("tile-icon-select");
 const tileColorSelect = document.getElementById("tile-color-select");
+const tileViewSelect = document.getElementById("tile-view-select");
 const resetWeekButton = document.getElementById("reset-week-button");
 const restoreDefaultsButton = document.getElementById("restore-defaults-button");
 const installAppButton = document.getElementById("install-app-button");
@@ -80,6 +117,7 @@ let deferredPrompt = null;
 let syncTimer = null;
 let currentUser = null;
 let magicLinkProgressTimer = null;
+let editingTileId = null;
 
 const yearPreviewMonths = [
   { label: "Jan", days: 31, tone: "neon", activeDays: [0, 2, 3, 6, 8, 13, 14, 18, 22, 25, 27, 30] },
@@ -122,6 +160,19 @@ function createTileId(baseSlug = "tile") {
   return `tile-${baseSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function normalizeTheme(value) {
+  const candidate = LEGACY_THEME_ALIASES[value] || value;
+  return THEME_OPTIONS.some((theme) => theme.id === candidate) ? candidate : "neon";
+}
+
+function normalizeViewMode(value) {
+  return VIEW_OPTIONS.some((view) => view.id === value) ? value : "year";
+}
+
+function getThemeLabel(themeId) {
+  return THEME_OPTIONS.find((theme) => theme.id === themeId)?.label || "Custom Theme";
+}
+
 function normalizeTile(tile) {
   const legacy = legacyTileMigrations[tile.id];
   const cells = Array.isArray(tile.cells) ? [...tile.cells] : [];
@@ -143,6 +194,8 @@ function normalizeTile(tile) {
     ...resolvedTile,
     id: resolvedId,
     name: resolvedName,
+    color: normalizeTheme(resolvedTile.color),
+    viewMode: normalizeViewMode(resolvedTile.viewMode),
     cells: cells.slice(0, TOTAL_DAYS)
   };
 }
@@ -260,8 +313,8 @@ function getBestStreak() {
 
 function getSupportCopy(count) {
   if (count === 0) return "You only need one next step.";
-  if (count < 8) return "Momentum still counts, even when it looks tiny.";
-  if (count < 18) return "This is progress, not a performance review.";
+  if (count < 30) return "Momentum still counts, even when it looks tiny.";
+  if (count < 110) return "This is progress, not a performance review.";
   return "You are building visible proof that you can return.";
 }
 
@@ -336,6 +389,26 @@ function buildMiniGrid(id, tile) {
   });
 }
 
+function getTileCompletionCount(tile) {
+  return tile.cells.filter(Boolean).length;
+}
+
+function getTileBestStreak(tile) {
+  let best = 0;
+  let current = 0;
+
+  tile.cells.forEach((value) => {
+    if (value) {
+      current += 1;
+      best = Math.max(best, current);
+    } else {
+      current = 0;
+    }
+  });
+
+  return best;
+}
+
 function renderYearPreview() {
   if (!yearPreviewGrid) return;
 
@@ -365,30 +438,78 @@ function renderYearPreview() {
   });
 }
 
-function getTimelineDays() {
+function getTimelineDays(totalDays = TOTAL_DAYS) {
   const days = [];
   const today = new Date();
   today.setHours(12, 0, 0, 0);
 
-  for (let offset = TOTAL_DAYS - 1; offset >= 0; offset -= 1) {
+  for (let offset = totalDays - 1; offset >= 0; offset -= 1) {
     const date = new Date(today);
     date.setDate(today.getDate() - offset);
     days.push({
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
       dayNumber: date.getDate(),
       weekday: WEEKDAY_FORMATTER.format(date).slice(0, 1),
       fullWeekday: WEEKDAY_FORMATTER.format(date),
-      shortDate: SHORT_DATE_FORMATTER.format(date)
+      shortDate: SHORT_DATE_FORMATTER.format(date),
+      monthLabel: MONTH_LABEL_FORMATTER.format(date),
+      monthWithYear: MONTH_WITH_YEAR_FORMATTER.format(date)
     });
   }
 
   return days;
 }
 
-function getTimelineRangeLabel(timelineDays) {
+function getFocusTimelineDays() {
+  return getTimelineDays(FOCUS_VIEW_DAYS);
+}
+
+function getYearRangeLabel() {
+  const timelineDays = getTimelineDays(TOTAL_DAYS);
+  if (!timelineDays.length) return "";
+  const first = timelineDays[0];
+  const last = timelineDays[timelineDays.length - 1];
+  return `${first.monthWithYear} - ${last.monthWithYear}`;
+}
+
+function getFocusRangeLabel() {
+  const timelineDays = getFocusTimelineDays();
   if (!timelineDays.length) return "";
   const first = timelineDays[0];
   const last = timelineDays[timelineDays.length - 1];
   return `${first.shortDate} - ${last.shortDate}`;
+}
+
+function groupTimelineDaysByMonth(days, tile) {
+  const groups = [];
+
+  days.forEach((dayMeta, index) => {
+    const globalIndex = TOTAL_DAYS - days.length + index;
+    const group = groups[groups.length - 1];
+
+    if (!group || group.label !== dayMeta.monthWithYear) {
+      groups.push({
+        label: dayMeta.monthLabel,
+        labelWithYear: dayMeta.monthWithYear,
+        items: [{ dayMeta, globalIndex, isActive: Boolean(tile.cells[globalIndex]) }]
+      });
+      return;
+    }
+
+    group.items.push({ dayMeta, globalIndex, isActive: Boolean(tile.cells[globalIndex]) });
+  });
+
+  return groups;
+}
+
+function createTileDayButton(tile, globalIndex, dayMeta, className) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.title = `${dayMeta.fullWeekday}, ${dayMeta.shortDate}`;
+  button.setAttribute("aria-label", `${tile.name} ${dayMeta.fullWeekday} ${dayMeta.shortDate}`);
+  button.addEventListener("click", () => toggleCell(tile.id, globalIndex));
+  return button;
 }
 
 function renderPreviewWidgets() {
@@ -486,60 +607,222 @@ function toggleCell(tileId, cellIndex) {
   render();
 }
 
+function getAvailableIcons() {
+  return Array.from(tileIconSelect?.options || []).map((option) => option.value).filter(Boolean);
+}
+
+function setEditingTile(tileId) {
+  editingTileId = editingTileId === tileId ? null : tileId;
+  render();
+}
+
+function updateTile(tileId, updates) {
+  tiles = tiles.map((tile) => {
+    if (tile.id !== tileId) return tile;
+    return normalizeTile({
+      ...tile,
+      ...updates
+    });
+  });
+
+  editingTileId = null;
+  persistTiles();
+  render();
+}
+
+function removeTile(tileId) {
+  tiles = tiles.filter((tile) => tile.id !== tileId);
+  editingTileId = null;
+  persistTiles();
+  render();
+}
+
+function buildTileEditor(tile) {
+  const editor = document.createElement("section");
+  const nameInput = document.createElement("input");
+  const iconSelect = document.createElement("select");
+  const themeSelect = document.createElement("select");
+  const viewSelect = document.createElement("select");
+  const actions = document.createElement("div");
+  const saveButton = document.createElement("button");
+  const cancelButton = document.createElement("button");
+  const deleteButton = document.createElement("button");
+
+  editor.className = "tile-editor-panel";
+  nameInput.className = "text-input";
+  iconSelect.className = "select-input";
+  themeSelect.className = "select-input";
+  viewSelect.className = "select-input";
+  actions.className = "tile-editor-actions";
+  saveButton.className = "primary-btn";
+  cancelButton.className = "ghost-btn";
+  deleteButton.className = "ghost-btn danger-btn";
+
+  nameInput.type = "text";
+  nameInput.maxLength = 32;
+  nameInput.value = tile.name;
+
+  getAvailableIcons().forEach((iconValue) => {
+    const option = document.createElement("option");
+    option.value = iconValue;
+    option.textContent = `${iconValue} ${iconValue === tile.icon ? "Current" : "Icon"}`;
+    if (iconValue === tile.icon) option.selected = true;
+    iconSelect.appendChild(option);
+  });
+
+  THEME_OPTIONS.forEach((theme) => {
+    const option = document.createElement("option");
+    option.value = theme.id;
+    option.textContent = theme.label;
+    if (theme.id === tile.color) option.selected = true;
+    themeSelect.appendChild(option);
+  });
+
+  VIEW_OPTIONS.forEach((view) => {
+    const option = document.createElement("option");
+    option.value = view.id;
+    option.textContent = view.label;
+    if (view.id === tile.viewMode) option.selected = true;
+    viewSelect.appendChild(option);
+  });
+
+  saveButton.type = "button";
+  cancelButton.type = "button";
+  deleteButton.type = "button";
+  saveButton.textContent = "Save";
+  cancelButton.textContent = "Cancel";
+  deleteButton.textContent = "Delete";
+
+  saveButton.addEventListener("click", () => {
+    const nextName = nameInput.value.trim();
+    if (!nextName) {
+      nameInput.focus();
+      return;
+    }
+
+    updateTile(tile.id, {
+      name: nextName,
+      icon: iconSelect.value,
+      color: themeSelect.value,
+      viewMode: viewSelect.value
+    });
+  });
+
+  cancelButton.addEventListener("click", () => {
+    editingTileId = null;
+    render();
+  });
+
+  deleteButton.addEventListener("click", () => {
+    removeTile(tile.id);
+  });
+
+  editor.append(nameInput, iconSelect, themeSelect, viewSelect);
+  actions.append(saveButton, cancelButton, deleteButton);
+  editor.appendChild(actions);
+
+  return editor;
+}
+
 function renderTile(tile) {
   const fragment = tileTemplate.content.cloneNode(true);
   const card = fragment.querySelector(".tile-card");
   const icon = fragment.querySelector(".tile-icon");
   const title = fragment.querySelector(".tile-title");
   const count = fragment.querySelector(".tile-count");
+  const editButton = fragment.querySelector(".tile-edit-btn");
   const tileRange = fragment.querySelector(".tile-range");
+  const tileViewPill = fragment.querySelector(".tile-view-pill");
+  const tileThemePill = fragment.querySelector(".tile-theme-pill");
   const weekdayStrip = fragment.querySelector(".weekday-strip");
   const cellsWrap = fragment.querySelector(".cells");
+  const tileEditor = fragment.querySelector(".tile-editor");
   const tileStreak = fragment.querySelector(".tile-streak");
-  const timelineDays = getTimelineDays();
+  const yearTimelineDays = getTimelineDays();
+  const focusTimelineDays = getFocusTimelineDays();
 
   card.classList.add(tile.color);
+  card.classList.add(`view-${tile.viewMode}`);
   icon.textContent = tile.icon;
   title.textContent = tile.name;
-  count.textContent = `${tile.cells.filter(Boolean).length}/${TOTAL_DAYS}`;
-  if (tileRange) tileRange.textContent = getTimelineRangeLabel(timelineDays);
-  if (weekdayStrip) {
+  count.textContent = `${getTileCompletionCount(tile)}/${TOTAL_DAYS}`;
+  if (tileRange) {
+    tileRange.textContent =
+      tile.viewMode === "year" ? `Year board • ${getYearRangeLabel()}` : `Focus board • ${getFocusRangeLabel()}`;
+  }
+  if (tileViewPill) tileViewPill.textContent = tile.viewMode === "year" ? "Year view" : "Focus view";
+  if (tileThemePill) tileThemePill.textContent = getThemeLabel(tile.color);
+  if (editButton) {
+    editButton.textContent = editingTileId === tile.id ? "Close" : "Customize";
+    editButton.addEventListener("click", () => setEditingTile(tile.id));
+  }
+  if (tileStreak) {
+    const best = getTileBestStreak(tile);
+    tileStreak.textContent = `${best} ${best === 1 ? "day" : "days"}`;
+  }
+
+  cellsWrap.innerHTML = "";
+  weekdayStrip.hidden = tile.viewMode !== "focus";
+
+  if (tile.viewMode === "focus") {
     weekdayStrip.innerHTML = "";
-    timelineDays.slice(0, 7).forEach((day) => {
+    focusTimelineDays.slice(0, 7).forEach((day) => {
       const label = document.createElement("span");
       label.className = "weekday-pill";
       label.textContent = day.weekday;
       weekdayStrip.appendChild(label);
     });
-  }
-  if (tileStreak) {
-    let best = 0;
-    let current = 0;
-    tile.cells.forEach((value) => {
-      if (value) {
-        current += 1;
-        best = Math.max(best, current);
-      } else {
-        current = 0;
-      }
+
+    focusTimelineDays.forEach((dayMeta, index) => {
+      const globalIndex = TOTAL_DAYS - FOCUS_VIEW_DAYS + index;
+      const button = createTileDayButton(
+        tile,
+        globalIndex,
+        dayMeta,
+        `cell${tile.cells[globalIndex] ? ` active ${tile.color}` : ""}`
+      );
+      const dateLabel = document.createElement("span");
+      dateLabel.className = "cell-date";
+      dateLabel.textContent = String(dayMeta.dayNumber);
+      button.appendChild(dateLabel);
+      cellsWrap.appendChild(button);
     });
-    tileStreak.textContent = `${best} ${best === 1 ? "day" : "days"}`;
+  } else {
+    cellsWrap.classList.add("year-board");
+    const monthGroups = groupTimelineDaysByMonth(yearTimelineDays, tile);
+
+    monthGroups.forEach((group) => {
+      const monthBlock = document.createElement("section");
+      const monthTitle = document.createElement("p");
+      const monthCells = document.createElement("div");
+
+      monthBlock.className = "tile-month-block";
+      monthTitle.className = "tile-month-title";
+      monthTitle.textContent = group.label;
+      monthCells.className = "tile-month-cells";
+
+      group.items.forEach(({ dayMeta, globalIndex, isActive }) => {
+        const button = createTileDayButton(
+          tile,
+          globalIndex,
+          dayMeta,
+          `year-cell${isActive ? ` active ${tile.color}` : ""}`
+        );
+        monthCells.appendChild(button);
+      });
+
+      monthBlock.append(monthTitle, monthCells);
+      cellsWrap.appendChild(monthBlock);
+    });
   }
 
-  tile.cells.forEach((isActive, index) => {
-    const dayMeta = timelineDays[index];
-    const button = document.createElement("button");
-    const dateLabel = document.createElement("span");
-    button.type = "button";
-    button.className = `cell${isActive ? ` active ${tile.color}` : ""}`;
-    button.title = `${dayMeta.fullWeekday}, ${dayMeta.shortDate}`;
-    button.setAttribute("aria-label", `${tile.name} ${dayMeta.fullWeekday} ${dayMeta.shortDate}`);
-    dateLabel.className = "cell-date";
-    dateLabel.textContent = String(dayMeta.dayNumber);
-    button.addEventListener("click", () => toggleCell(tile.id, index));
-    button.appendChild(dateLabel);
-    cellsWrap.appendChild(button);
-  });
+  if (tileEditor) {
+    tileEditor.hidden = editingTileId !== tile.id;
+    tileEditor.innerHTML = "";
+    if (editingTileId === tile.id) {
+      tileEditor.appendChild(buildTileEditor(tile));
+    }
+  }
 
   return fragment;
 }
@@ -583,7 +866,7 @@ function getUniqueTileId(baseSlug) {
 
 function addTile(name, iconOverride, colorOverride) {
   const slug = slugifyTileName(name) || "tile";
-  const palette = colorOverride || ["green", "blue", "orange"][tiles.length % 3];
+  const palette = colorOverride || THEME_OPTIONS[tiles.length % THEME_OPTIONS.length].id;
   const icons = ["✨", "🧠", "🌙", "💧", "📘", "🎯", "📝", "🏃"];
   const icon = iconOverride || icons[tiles.length % icons.length];
 
@@ -593,6 +876,7 @@ function addTile(name, iconOverride, colorOverride) {
       name,
       icon,
       color: palette,
+      viewMode: tileViewSelect?.value || "year",
       cells: new Array(TOTAL_DAYS).fill(0)
     })
   );
@@ -613,7 +897,8 @@ function handleCreateTile() {
 
   if (tileNameInput) tileNameInput.value = "";
   if (tileIconSelect) tileIconSelect.value = "✨";
-  if (tileColorSelect) tileColorSelect.value = "green";
+  if (tileColorSelect) tileColorSelect.value = "neon";
+  if (tileViewSelect) tileViewSelect.value = "year";
 }
 
 function getEmailRedirectUrl() {
@@ -660,6 +945,7 @@ function mapCloudTiles(trackers = [], entries = []) {
       name: tracker.title,
       icon: tracker.icon,
       color: tracker.color,
+      viewMode: tracker.view_mode,
       cells: entriesByTracker.get(tracker.id) || new Array(TOTAL_DAYS).fill(0)
     })
   );
@@ -670,7 +956,7 @@ async function loadTilesFromCloud(userId) {
 
   const { data: trackers, error: trackerError } = await supabaseClient
     .from("trackers")
-    .select("id, title, icon, color, position")
+    .select("id, title, icon, color, view_mode, position")
     .eq("user_id", userId)
     .eq("archived", false)
     .order("position", { ascending: true });
@@ -695,6 +981,7 @@ function buildCloudPayload(userId) {
     title: tile.name,
     icon: tile.icon,
     color: tile.color,
+    view_mode: tile.viewMode,
     position: index,
     archived: false
   }));
