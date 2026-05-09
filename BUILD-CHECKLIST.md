@@ -22,6 +22,7 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 - [x] first cloud sync path for tracker tiles is wired
 - [x] simplified hero preview now shows a 365-day year-view customization card
 - [x] real tracker cards now support 365-day boards with year and focus views
+- [x] date cells now open a hidden short note pad with checkbox support
 
 ### In Progress
 

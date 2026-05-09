@@ -24,6 +24,7 @@ create table if not exists tracker_entries (
   tracker_id text not null references trackers(id) on delete cascade,
   day_index integer not null check (day_index >= 0 and day_index <= 364),
   completed boolean not null default false,
+  note text not null default '',
   updated_at timestamptz not null default now(),
   unique (tracker_id, day_index)
 );
@@ -33,6 +34,9 @@ alter table trackers
 
 alter table tracker_entries
   drop constraint if exists tracker_entries_day_index_check;
+
+alter table tracker_entries
+  add column if not exists note text not null default '';
 
 alter table tracker_entries
   add constraint tracker_entries_day_index_check

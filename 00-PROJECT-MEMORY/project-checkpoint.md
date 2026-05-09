@@ -36,6 +36,7 @@ GitHub Repo:
 - clearer signed-in / signed-out UI states
 - simplified hero with a single 365-day year-view customization preview
 - richer tile customization with theme selection and year/focus tile views
+- clickable date cells with a hidden short note pad and checkbox state
 - SaaS monetization roadmap
 
 ## Updated Product Description

@@ -118,6 +118,7 @@ let syncTimer = null;
 let currentUser = null;
 let magicLinkProgressTimer = null;
 let editingTileId = null;
+let activeCell = null;
 
 const yearPreviewMonths = [
   { label: "Jan", days: 31, tone: "neon", activeDays: [0, 2, 3, 6, 8, 13, 14, 18, 22, 25, 27, 30] },
@@ -176,7 +177,9 @@ function getThemeLabel(themeId) {
 function normalizeTile(tile) {
   const legacy = legacyTileMigrations[tile.id];
   const cells = Array.isArray(tile.cells) ? [...tile.cells] : [];
+  const notes = Array.isArray(tile.notes) ? [...tile.notes] : [];
   while (cells.length < TOTAL_DAYS) cells.push(0);
+  while (notes.length < TOTAL_DAYS) notes.push("");
   const resolvedTile = {
     ...tile,
     ...(legacy || {})
@@ -196,7 +199,8 @@ function normalizeTile(tile) {
     name: resolvedName,
     color: normalizeTheme(resolvedTile.color),
     viewMode: normalizeViewMode(resolvedTile.viewMode),
-    cells: cells.slice(0, TOTAL_DAYS)
+    cells: cells.slice(0, TOTAL_DAYS),
+    notes: notes.slice(0, TOTAL_DAYS).map((note) => String(note || ""))
   };
 }
 
@@ -409,6 +413,10 @@ function getTileBestStreak(tile) {
   return best;
 }
 
+function hasTileNote(tile, cellIndex) {
+  return Boolean(tile.notes?.[cellIndex]?.trim());
+}
+
 function renderYearPreview() {
   if (!yearPreviewGrid) return;
 
@@ -508,7 +516,6 @@ function createTileDayButton(tile, globalIndex, dayMeta, className) {
   button.className = className;
   button.title = `${dayMeta.fullWeekday}, ${dayMeta.shortDate}`;
   button.setAttribute("aria-label", `${tile.name} ${dayMeta.fullWeekday} ${dayMeta.shortDate}`);
-  button.addEventListener("click", () => toggleCell(tile.id, globalIndex));
   return button;
 }
 
@@ -603,6 +610,41 @@ function toggleCell(tileId, cellIndex) {
     nextCells[cellIndex] = nextCells[cellIndex] ? 0 : 1;
     return { ...tile, cells: nextCells };
   });
+  persistTiles();
+  render();
+}
+
+function toggleActiveCell(tileId, cellIndex) {
+  if (activeCell?.tileId === tileId && activeCell?.cellIndex === cellIndex) {
+    activeCell = null;
+  } else {
+    activeCell = { tileId, cellIndex };
+  }
+  render();
+}
+
+function updateCellDetails(tileId, cellIndex, updates) {
+  tiles = tiles.map((tile) => {
+    if (tile.id !== tileId) return tile;
+
+    const nextCells = [...tile.cells];
+    const nextNotes = Array.isArray(tile.notes) ? [...tile.notes] : new Array(TOTAL_DAYS).fill("");
+
+    if (typeof updates.completed === "boolean") {
+      nextCells[cellIndex] = Number(updates.completed);
+    }
+
+    if (typeof updates.note === "string") {
+      nextNotes[cellIndex] = updates.note.slice(0, 180);
+    }
+
+    return {
+      ...tile,
+      cells: nextCells,
+      notes: nextNotes
+    };
+  });
+
   persistTiles();
   render();
 }
@@ -724,6 +766,64 @@ function buildTileEditor(tile) {
   return editor;
 }
 
+function buildCellNotePanel(tile, cellIndex, dayMeta) {
+  const panel = document.createElement("section");
+  const heading = document.createElement("div");
+  const title = document.createElement("strong");
+  const noteHint = document.createElement("span");
+  const checkboxLabel = document.createElement("label");
+  const checkbox = document.createElement("input");
+  const checkboxText = document.createElement("span");
+  const noteInput = document.createElement("textarea");
+  const actions = document.createElement("div");
+  const saveButton = document.createElement("button");
+  const closeButton = document.createElement("button");
+
+  panel.className = "cell-note-panel-inner";
+  heading.className = "cell-note-head";
+  noteHint.className = "cell-note-date";
+  checkboxLabel.className = "cell-note-check";
+  noteInput.className = "focus-input cell-note-input";
+  actions.className = "cell-note-actions";
+  saveButton.className = "primary-btn";
+  closeButton.className = "ghost-btn";
+
+  title.textContent = `${tile.name} • ${dayMeta.shortDate}`;
+  noteHint.textContent = `${dayMeta.fullWeekday} note pad`;
+
+  checkbox.type = "checkbox";
+  checkbox.checked = Boolean(tile.cells[cellIndex]);
+  checkboxText.textContent = "Completed";
+
+  noteInput.placeholder = "Add a short note for this date...";
+  noteInput.maxLength = 180;
+  noteInput.value = tile.notes?.[cellIndex] || "";
+
+  saveButton.type = "button";
+  closeButton.type = "button";
+  saveButton.textContent = "Save note";
+  closeButton.textContent = "Close";
+
+  saveButton.addEventListener("click", () => {
+    updateCellDetails(tile.id, cellIndex, {
+      completed: checkbox.checked,
+      note: noteInput.value.trim()
+    });
+  });
+
+  closeButton.addEventListener("click", () => {
+    activeCell = null;
+    render();
+  });
+
+  heading.append(title, noteHint);
+  checkboxLabel.append(checkbox, checkboxText);
+  actions.append(saveButton, closeButton);
+  panel.append(heading, checkboxLabel, noteInput, actions);
+
+  return panel;
+}
+
 function renderTile(tile) {
   const fragment = tileTemplate.content.cloneNode(true);
   const card = fragment.querySelector(".tile-card");
@@ -736,6 +836,7 @@ function renderTile(tile) {
   const tileThemePill = fragment.querySelector(".tile-theme-pill");
   const weekdayStrip = fragment.querySelector(".weekday-strip");
   const cellsWrap = fragment.querySelector(".cells");
+  const tileNotePanel = fragment.querySelector(".tile-note-panel");
   const tileEditor = fragment.querySelector(".tile-editor");
   const tileStreak = fragment.querySelector(".tile-streak");
   const yearTimelineDays = getTimelineDays();
@@ -782,9 +883,14 @@ function renderTile(tile) {
         `cell${tile.cells[globalIndex] ? ` active ${tile.color}` : ""}`
       );
       const dateLabel = document.createElement("span");
+      const noteMarker = document.createElement("span");
       dateLabel.className = "cell-date";
       dateLabel.textContent = String(dayMeta.dayNumber);
+      noteMarker.className = `cell-note-marker${hasTileNote(tile, globalIndex) ? " visible" : ""}`;
+      noteMarker.setAttribute("aria-hidden", "true");
+      button.addEventListener("click", () => toggleActiveCell(tile.id, globalIndex));
       button.appendChild(dateLabel);
+      button.appendChild(noteMarker);
       cellsWrap.appendChild(button);
     });
   } else {
@@ -808,12 +914,30 @@ function renderTile(tile) {
           dayMeta,
           `year-cell${isActive ? ` active ${tile.color}` : ""}`
         );
+        const noteMarker = document.createElement("span");
+        noteMarker.className = `year-cell-note${hasTileNote(tile, globalIndex) ? " visible" : ""}`;
+        noteMarker.setAttribute("aria-hidden", "true");
+        button.addEventListener("click", () => toggleActiveCell(tile.id, globalIndex));
+        button.appendChild(noteMarker);
         monthCells.appendChild(button);
       });
 
       monthBlock.append(monthTitle, monthCells);
       cellsWrap.appendChild(monthBlock);
     });
+  }
+
+  if (tileNotePanel) {
+    const isActiveTile = activeCell?.tileId === tile.id;
+    tileNotePanel.hidden = !isActiveTile;
+    tileNotePanel.innerHTML = "";
+
+    if (isActiveTile) {
+      const activeDayMeta = getTimelineDays()[activeCell.cellIndex];
+      if (activeDayMeta) {
+        tileNotePanel.appendChild(buildCellNotePanel(tile, activeCell.cellIndex, activeDayMeta));
+      }
+    }
   }
 
   if (tileEditor) {
@@ -934,9 +1058,14 @@ function mapCloudTiles(trackers = [], entries = []) {
 
   entries.forEach((entry) => {
     if (!entriesByTracker.has(entry.tracker_id)) {
-      entriesByTracker.set(entry.tracker_id, new Array(TOTAL_DAYS).fill(0));
+      entriesByTracker.set(entry.tracker_id, {
+        cells: new Array(TOTAL_DAYS).fill(0),
+        notes: new Array(TOTAL_DAYS).fill("")
+      });
     }
-    entriesByTracker.get(entry.tracker_id)[entry.day_index] = entry.completed ? 1 : 0;
+    const trackerState = entriesByTracker.get(entry.tracker_id);
+    trackerState.cells[entry.day_index] = entry.completed ? 1 : 0;
+    trackerState.notes[entry.day_index] = entry.note || "";
   });
 
   return trackers.map((tracker) =>
@@ -946,7 +1075,8 @@ function mapCloudTiles(trackers = [], entries = []) {
       icon: tracker.icon,
       color: tracker.color,
       viewMode: tracker.view_mode,
-      cells: entriesByTracker.get(tracker.id) || new Array(TOTAL_DAYS).fill(0)
+      cells: entriesByTracker.get(tracker.id)?.cells || new Array(TOTAL_DAYS).fill(0),
+      notes: entriesByTracker.get(tracker.id)?.notes || new Array(TOTAL_DAYS).fill("")
     })
   );
 }
@@ -967,7 +1097,7 @@ async function loadTilesFromCloud(userId) {
   const trackerIds = trackers.map((tracker) => tracker.id);
   const { data: entries, error: entryError } = await supabaseClient
     .from("tracker_entries")
-    .select("tracker_id, day_index, completed")
+    .select("tracker_id, day_index, completed, note")
     .in("tracker_id", trackerIds);
 
   if (entryError) throw entryError;
@@ -992,7 +1122,8 @@ function buildCloudPayload(userId) {
       entries.push({
         tracker_id: tile.id,
         day_index: dayIndex,
-        completed: Boolean(value)
+        completed: Boolean(value),
+        note: tile.notes?.[dayIndex] || ""
       });
     });
   });

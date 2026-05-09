@@ -758,6 +758,24 @@ button:hover {
   z-index: 1;
 }
 
+.cell-note-marker,
+.year-cell-note {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0;
+}
+
+.cell-note-marker.visible,
+.year-cell-note.visible {
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.28);
+}
+
 .year-cell {
   aspect-ratio: 1;
   border-radius: 4px;
@@ -765,6 +783,7 @@ button:hover {
   background: rgba(255, 255, 255, 0.05);
   min-height: 12px;
   padding: 0;
+  position: relative;
 }
 
 .cell.active.green {
@@ -818,6 +837,46 @@ button:hover {
 
 .tile-editor {
   margin-top: 14px;
+}
+
+.tile-note-panel {
+  margin-top: 14px;
+}
+
+.cell-note-panel-inner {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cell-note-head {
+  display: grid;
+  gap: 4px;
+}
+
+.cell-note-date {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.cell-note-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(244, 247, 251, 0.9);
+}
+
+.cell-note-input {
+  min-height: 88px;
+}
+
+.cell-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .tile-editor-panel {
@@ -999,12 +1058,14 @@ button:hover {
 
   .cells.year-board,
   .tile-head-meta,
-  .tile-editor-actions {
+  .tile-editor-actions,
+  .cell-note-actions {
     grid-template-columns: 1fr;
   }
 
   .tile-head-meta,
-  .tile-editor-actions {
+  .tile-editor-actions,
+  .cell-note-actions {
     display: grid;
   }
 
