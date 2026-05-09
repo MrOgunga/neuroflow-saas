@@ -10,7 +10,7 @@
     />
     <meta name="theme-color" content="#06080c" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=20260508b" />
+    <link rel="stylesheet" href="styles.css?v=20260509c" />
   </head>
   <body>
     <main class="shell">
@@ -25,7 +25,7 @@
             Guest mode is active. Your progress is currently saved only on this device.
           </p>
           <p class="section-note" id="sync-status">
-            Sign in to sync your focus tiles across devices.
+            Sign in to sync your focus tiles and daily anchor across devices.
           </p>
         </div>
         <div class="auth-actions">
@@ -50,10 +50,9 @@
       <section class="hero-band">
         <div class="hero-copy">
           <p class="eyebrow">Neuroflow</p>
-          <h1>Your reset-friendly tracker for real ADHD days.</h1>
+          <h1>A simple ADHD reset tracker.</h1>
           <p class="subcopy">
-            Track small wins, catch your footing fast, and build a rhythm that helps your brain
-            restart instead of shutting down.
+            Track small wins, restart gently, and keep one steady rhythm you can come back to.
           </p>
           <div class="hero-points">
             <span class="tag-chip">Visual progress</span>
@@ -97,26 +96,26 @@
               </article>
             </div>
           </div>
-          <div class="widget-card widget-green">
+          <div class="widget-card widget-blue single-preview-card">
             <div class="widget-head">
-              <span>✅</span>
-              <strong>To-Do List</strong>
+              <span class="widget-icon">📝</span>
+              <strong>Journaling Year View</strong>
             </div>
-            <div class="mini-grid" id="focus-preview"></div>
-          </div>
-          <div class="widget-card widget-blue">
-            <div class="widget-head">
-              <span>📝</span>
-              <strong>Journaling</strong>
+            <p class="widget-note">
+              A full 365-day card makes the idea instantly clear: one habit, one year, your own
+              glow and color mix.
+            </p>
+            <div class="year-preview-head">
+              <span class="year-preview-label">365-day preview</span>
+              <span class="year-preview-label">Custom color moods</span>
             </div>
-            <div class="mini-grid" id="tidy-preview"></div>
-          </div>
-          <div class="widget-card widget-orange">
-            <div class="widget-head">
-              <span>🏃</span>
-              <strong>Exercising</strong>
+            <div class="year-preview-grid" id="year-preview-grid" aria-label="Year preview card"></div>
+            <div class="year-preview-legend">
+              <span class="legend-chip legend-neon">Neon green</span>
+              <span class="legend-chip legend-orange">Warm orange</span>
+              <span class="legend-chip legend-white">Soft white</span>
+              <span class="legend-chip legend-blue">Cool blue</span>
             </div>
-            <div class="mini-grid" id="winddown-preview"></div>
           </div>
         </div>
       </section>
@@ -243,9 +242,8 @@
           </div>
         </div>
         <p class="anchor-text" id="anchor-text">You haven’t saved a daily anchor yet.</p>
-        <p class="anchor-note">
-          Later, we can connect reminders, onboarding, and subscriptions. For this MVP, everything
-          stays fast and local on your device.
+        <p class="anchor-note" id="anchor-note">
+          In guest mode, your daily anchor stays on this device until you sign in.
         </p>
       </section>
     </main>
@@ -270,7 +268,7 @@
     </template>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js?v=20260508b"></script>
-    <script src="app.js?v=20260508b"></script>
+    <script src="supabase-config.js?v=20260509c"></script>
+    <script src="app.js?v=20260509c"></script>
   </body>
 </html>

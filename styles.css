@@ -155,8 +155,8 @@ textarea {
 }
 
 .hero-copy h1 {
-  max-width: 10.5ch;
-  font-size: clamp(2.5rem, 4vw, 5rem);
+  max-width: 11.5ch;
+  font-size: clamp(2.4rem, 3.4vw, 4.2rem);
 }
 
 .subcopy,
@@ -308,8 +308,132 @@ button:hover {
   margin-bottom: 14px;
 }
 
-.mini-grid {
+.widget-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.95rem;
+}
+
+.single-preview-card {
+  padding: 18px 18px 20px;
+  background:
+    radial-gradient(circle at top right, rgba(72, 167, 255, 0.18), transparent 34%),
+    radial-gradient(circle at bottom left, rgba(70, 255, 127, 0.16), transparent 36%),
+    var(--panel-2);
+}
+
+.widget-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.94rem;
+}
+
+.year-preview-head,
+.year-preview-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.year-preview-head {
+  margin-bottom: 12px;
+}
+
+.year-preview-label,
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(244, 247, 251, 0.86);
+  font-size: 0.78rem;
+}
+
+.year-preview-grid {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.month-preview {
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.month-preview-title {
+  margin: 0 0 8px;
+  color: rgba(244, 247, 251, 0.9);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.month-preview-cells {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.mini-grid,
+.month-cell {
+  display: grid;
+}
+
+.month-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.month-cell.active {
+  transform: translateY(-1px);
+}
+
+.month-preview.neon .month-cell.active,
+.legend-neon::before {
+  background: rgba(70, 255, 127, 0.92);
+  box-shadow: 0 0 10px rgba(70, 255, 127, 0.5);
+}
+
+.month-preview.orange .month-cell.active,
+.legend-orange::before {
+  background: rgba(255, 159, 72, 0.95);
+  box-shadow: 0 0 10px rgba(255, 159, 72, 0.44);
+}
+
+.month-preview.white .month-cell.active,
+.legend-white::before {
+  background: rgba(246, 248, 255, 0.96);
+  box-shadow: 0 0 10px rgba(246, 248, 255, 0.34);
+}
+
+.month-preview.blue .month-cell.active,
+.legend-blue::before {
+  background: rgba(72, 167, 255, 0.92);
+  box-shadow: 0 0 10px rgba(72, 167, 255, 0.42);
+}
+
+.legend-chip::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 999px;
+}
+
+.mini-grid {
   grid-template-columns: repeat(7, 1fr);
   gap: 8px;
 }
@@ -636,6 +760,10 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
+  .year-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .tile-creator-grid,
   .overview-stats {
     grid-template-columns: 1fr;
@@ -695,6 +823,14 @@ button:hover {
   .recovery-actions button,
   .auth-actions button {
     width: 100%;
+  }
+
+  .year-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .month-preview {
+    padding: 9px;
   }
 
   .tile-grid {

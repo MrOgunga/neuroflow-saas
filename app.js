@@ -2,6 +2,7 @@ const STORAGE_KEY = "neuroflow_tiles_v5";
 const FOCUS_KEY = "neuroflow_daily_anchor_v4";
 const TOTAL_DAYS = 31;
 const SYNC_DEBOUNCE_MS = 900;
+const TRACKER_ID_PREFIX = "tracker";
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat(undefined, { weekday: "short" });
 const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
 
@@ -53,6 +54,7 @@ const clearFocusButton = document.getElementById("clear-focus-button");
 const loadSampleButton = document.getElementById("load-sample-button");
 const focusInput = document.getElementById("focus-input");
 const anchorText = document.getElementById("anchor-text");
+const anchorNote = document.getElementById("anchor-note");
 const emailInput = document.getElementById("email-input");
 const magicLinkButton = document.getElementById("magic-link-button");
 const syncNowButton = document.getElementById("sync-now-button");
@@ -72,11 +74,27 @@ const storageMode = document.getElementById("storage-mode");
 const overviewTitle = document.getElementById("overview-title");
 const overviewCopy = document.getElementById("overview-copy");
 const overviewBadge = document.getElementById("overview-badge");
+const yearPreviewGrid = document.getElementById("year-preview-grid");
 
 let deferredPrompt = null;
 let syncTimer = null;
 let currentUser = null;
 let magicLinkProgressTimer = null;
+
+const yearPreviewMonths = [
+  { label: "Jan", days: 31, tone: "neon", activeDays: [0, 2, 3, 6, 8, 13, 14, 18, 22, 25, 27, 30] },
+  { label: "Feb", days: 28, tone: "orange", activeDays: [1, 4, 5, 6, 10, 14, 17, 18, 21, 25] },
+  { label: "Mar", days: 31, tone: "white", activeDays: [0, 1, 5, 9, 10, 13, 14, 19, 21, 24, 28] },
+  { label: "Apr", days: 30, tone: "blue", activeDays: [2, 3, 7, 8, 12, 16, 18, 22, 23, 26] },
+  { label: "May", days: 31, tone: "neon", activeDays: [0, 4, 5, 6, 10, 11, 15, 19, 20, 24, 27, 30] },
+  { label: "Jun", days: 30, tone: "orange", activeDays: [1, 2, 6, 9, 13, 14, 18, 21, 22, 27] },
+  { label: "Jul", days: 31, tone: "white", activeDays: [0, 1, 2, 7, 8, 12, 16, 17, 20, 24, 28, 29] },
+  { label: "Aug", days: 31, tone: "blue", activeDays: [3, 4, 5, 9, 13, 14, 18, 19, 22, 26, 27, 30] },
+  { label: "Sep", days: 30, tone: "orange", activeDays: [0, 1, 5, 8, 9, 13, 17, 18, 21, 24, 28] },
+  { label: "Oct", days: 31, tone: "neon", activeDays: [2, 3, 4, 8, 11, 12, 16, 20, 21, 25, 29, 30] },
+  { label: "Nov", days: 30, tone: "white", activeDays: [1, 5, 6, 10, 14, 15, 18, 22, 23, 27] },
+  { label: "Dec", days: 31, tone: "blue", activeDays: [0, 4, 5, 9, 12, 13, 17, 18, 22, 26, 27, 30] }
+];
 
 const supabaseConfig = window.NEUROFLOW_SUPABASE_CONFIG || {};
 const supabaseClient =
@@ -92,13 +110,39 @@ function isIosSafari() {
   return isIOS && isWebkit && !isCriOS;
 }
 
+function slugifyTileName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function createTileId(baseSlug = "tile") {
+  return `tile-${baseSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function normalizeTile(tile) {
   const legacy = legacyTileMigrations[tile.id];
   const cells = Array.isArray(tile.cells) ? [...tile.cells] : [];
   while (cells.length < TOTAL_DAYS) cells.push(0);
-  return {
+  const resolvedTile = {
     ...tile,
-    ...(legacy || {}),
+    ...(legacy || {})
+  };
+  const resolvedName = typeof resolvedTile.name === "string" && resolvedTile.name.trim()
+    ? resolvedTile.name.trim()
+    : "Untitled Tile";
+  const resolvedSlug = slugifyTileName(resolvedName) || "tile";
+  const resolvedId =
+    typeof resolvedTile.id === "string" && resolvedTile.id.trim()
+      ? resolvedTile.id
+      : createTileId(resolvedSlug);
+
+  return {
+    ...resolvedTile,
+    id: resolvedId,
+    name: resolvedName,
     cells: cells.slice(0, TOTAL_DAYS)
   };
 }
@@ -274,6 +318,11 @@ function renderStats() {
 function renderAnchor() {
   if (focusInput) focusInput.value = focusAnchor;
   if (anchorText) anchorText.textContent = focusAnchor || "You haven’t saved a daily anchor yet.";
+  if (anchorNote) {
+    anchorNote.textContent = currentUser
+      ? "Your daily anchor now syncs with your account, so it follows you across devices."
+      : "In guest mode, your daily anchor stays on this device until you sign in.";
+  }
 }
 
 function buildMiniGrid(id, tile) {
@@ -284,6 +333,35 @@ function buildMiniGrid(id, tile) {
     const cell = document.createElement("span");
     cell.className = `mini-cell${isActive ? ` active ${tile.color}` : ""}`;
     wrap.appendChild(cell);
+  });
+}
+
+function renderYearPreview() {
+  if (!yearPreviewGrid) return;
+
+  yearPreviewGrid.innerHTML = "";
+
+  yearPreviewMonths.forEach((month) => {
+    const monthCard = document.createElement("section");
+    const title = document.createElement("p");
+    const cellsWrap = document.createElement("div");
+
+    monthCard.className = `month-preview ${month.tone}`;
+    title.className = "month-preview-title";
+    title.textContent = month.label;
+    cellsWrap.className = "month-preview-cells";
+
+    for (let dayIndex = 0; dayIndex < month.days; dayIndex += 1) {
+      const cell = document.createElement("span");
+      const isActive = month.activeDays.includes(dayIndex);
+      cell.className = `month-cell${isActive ? " active" : ""}`;
+      cell.setAttribute("aria-hidden", "true");
+      cellsWrap.appendChild(cell);
+    }
+
+    monthCard.appendChild(title);
+    monthCard.appendChild(cellsWrap);
+    yearPreviewGrid.appendChild(monthCard);
   });
 }
 
@@ -314,12 +392,7 @@ function getTimelineRangeLabel(timelineDays) {
 }
 
 function renderPreviewWidgets() {
-  const todoList = tiles.find((tile) => tile.id === "to-do-list") || tiles[0];
-  const journaling = tiles.find((tile) => tile.id === "journaling") || tiles[1] || tiles[0];
-  const exercising = tiles.find((tile) => tile.id === "exercising") || tiles[2] || tiles[0];
-  if (todoList) buildMiniGrid("focus-preview", todoList);
-  if (journaling) buildMiniGrid("tidy-preview", journaling);
-  if (exercising) buildMiniGrid("winddown-preview", exercising);
+  renderYearPreview();
 }
 
 function updateAuthUi() {
@@ -333,8 +406,60 @@ function updateAuthUi() {
   if (overviewBadge) overviewBadge.textContent = signedIn ? "Synced" : "Local";
 }
 
+function hasMeaningfulLocalTiles() {
+  return getCompletionCount() > 0;
+}
+
+function hasMeaningfulLocalAnchor() {
+  return focusAnchor.trim().length > 0;
+}
+
 function hasMeaningfulLocalState() {
-  return getCompletionCount() > 0 || focusAnchor.trim().length > 0;
+  return hasMeaningfulLocalTiles() || hasMeaningfulLocalAnchor();
+}
+
+function getCloudSafeTileId(userId, baseSlug, index = 0) {
+  const cleanSlug = slugifyTileName(baseSlug) || `tile-${index + 1}`;
+  return `${TRACKER_ID_PREFIX}-${userId}-${cleanSlug}`;
+}
+
+function isCloudSafeTileId(tileId, userId) {
+  return Boolean(tileId && userId && tileId.startsWith(`${TRACKER_ID_PREFIX}-${userId}-`));
+}
+
+function ensureCloudSafeTileIds(userId) {
+  if (!userId) return { didChange: false, legacyIds: [] };
+
+  const seenIds = new Set();
+  const legacyIds = [];
+  let didChange = false;
+
+  tiles = tiles.map((tile, index) => {
+    const currentId = tile.id;
+    let nextId = currentId;
+
+    if (!isCloudSafeTileId(currentId, userId) || seenIds.has(currentId)) {
+      nextId = getCloudSafeTileId(userId, tile.name || currentId, index);
+      let suffix = 2;
+
+      while (seenIds.has(nextId)) {
+        nextId = `${getCloudSafeTileId(userId, tile.name || currentId, index)}-${suffix}`;
+        suffix += 1;
+      }
+
+      if (currentId && currentId !== nextId) {
+        legacyIds.push(currentId);
+      }
+
+      didChange = true;
+    }
+
+    seenIds.add(nextId);
+    return nextId === currentId ? tile : { ...tile, id: nextId };
+  });
+
+  if (didChange) saveTiles();
+  return { didChange, legacyIds };
 }
 
 function queueCloudSync() {
@@ -457,14 +582,14 @@ function getUniqueTileId(baseSlug) {
 }
 
 function addTile(name, iconOverride, colorOverride) {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const slug = slugifyTileName(name) || "tile";
   const palette = colorOverride || ["green", "blue", "orange"][tiles.length % 3];
   const icons = ["✨", "🧠", "🌙", "💧", "📘", "🎯", "📝", "🏃"];
   const icon = iconOverride || icons[tiles.length % icons.length];
 
   tiles.push(
     normalizeTile({
-      id: getUniqueTileId(slug),
+      id: createTileId(getUniqueTileId(slug)),
       name,
       icon,
       color: palette,
@@ -503,6 +628,20 @@ async function ensureProfile(user) {
     },
     { onConflict: "id" }
   );
+}
+
+async function loadAnchorFromCloud(userId) {
+  if (!supabaseClient || !userId) return null;
+
+  const { data, error } = await supabaseClient
+    .from("daily_anchors")
+    .select("content")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return data.content || "";
 }
 
 function mapCloudTiles(trackers = [], entries = []) {
@@ -577,7 +716,7 @@ function buildCloudPayload(userId) {
 async function syncTilesToCloud(options = {}) {
   if (!supabaseClient || !currentUser) return;
 
-  const { silent = false } = options;
+  const { silent = false, legacyTrackerIds = [] } = options;
 
   try {
     if (!silent) setSyncMessage("Syncing your boards to the cloud...");
@@ -590,13 +729,43 @@ async function syncTilesToCloud(options = {}) {
 
     if (trackerError) throw trackerError;
 
+    if (legacyTrackerIds.length > 0) {
+      const { error: deleteLegacyError } = await supabaseClient
+        .from("trackers")
+        .delete()
+        .eq("user_id", currentUser.id)
+        .in("id", legacyTrackerIds);
+
+      if (deleteLegacyError) throw deleteLegacyError;
+    }
+
     const { error: entryError } = await supabaseClient
       .from("tracker_entries")
       .upsert(entries, { onConflict: "tracker_id,day_index" });
 
     if (entryError) throw entryError;
 
-    setSyncMessage("Your focus tiles are synced. Daily anchor still stays local for now.");
+    if (focusAnchor.trim()) {
+      const { error: anchorError } = await supabaseClient.from("daily_anchors").upsert(
+        {
+          user_id: currentUser.id,
+          content: focusAnchor.trim(),
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (anchorError) throw anchorError;
+    } else {
+      const { error: deleteAnchorError } = await supabaseClient
+        .from("daily_anchors")
+        .delete()
+        .eq("user_id", currentUser.id);
+
+      if (deleteAnchorError) throw deleteAnchorError;
+    }
+
+    setSyncMessage("Your boards and daily anchor are synced to your account.");
   } catch (error) {
     console.error(error);
     setSyncMessage("We couldn’t sync yet. Your progress is still safe on this device.");
@@ -611,23 +780,39 @@ async function hydrateSignedInState(user) {
 
   try {
     setAuthMessage(`Signed in as ${currentUser.email}.`);
-    setSyncMessage("Checking your cloud boards...");
+    setSyncMessage("Checking your cloud data...");
 
     await ensureProfile(currentUser);
-    const cloudTiles = await loadTilesFromCloud(currentUser.id);
+    const [cloudTiles, cloudAnchor] = await Promise.all([
+      loadTilesFromCloud(currentUser.id),
+      loadAnchorFromCloud(currentUser.id)
+    ]);
 
     if (cloudTiles.length > 0) {
       tiles = cloudTiles;
       saveTiles();
-      render();
-      setSyncMessage("Cloud boards loaded on this device.");
+    }
+
+    if (cloudAnchor !== null) {
+      focusAnchor = cloudAnchor;
+      saveFocusAnchor();
+    }
+
+    const { legacyIds } = ensureCloudSafeTileIds(currentUser.id);
+    render();
+
+    if (cloudTiles.length > 0 || cloudAnchor !== null) {
+      setSyncMessage("Your synced boards and daily anchor are ready on this device.");
+      if (legacyIds.length > 0) {
+        await syncTilesToCloud({ silent: true, legacyTrackerIds: legacyIds });
+      }
       return;
     }
 
     if (hasMeaningfulLocalState()) {
-      await syncTilesToCloud();
+      await syncTilesToCloud({ legacyTrackerIds: legacyIds });
     } else {
-      setSyncMessage("Your account is ready. Start tracking and we’ll sync your boards here.");
+      setSyncMessage("Your account is ready. Start tracking and we’ll keep your boards and anchor in sync.");
     }
   } catch (error) {
     console.error(error);
@@ -653,7 +838,7 @@ async function initializeAuth() {
     currentUser = null;
     updateAuthUi();
     setAuthMessage("Guest mode is active. Your progress is currently saved only on this device.");
-    setSyncMessage("Sign in to sync your focus tiles across devices.");
+    setSyncMessage("Sign in to sync your focus tiles and daily anchor across devices.");
   }
 
   supabaseClient.auth.onAuthStateChange(async (event, sessionData) => {
@@ -661,7 +846,7 @@ async function initializeAuth() {
       currentUser = null;
       updateAuthUi();
       setAuthMessage("Signed out. Guest mode is active on this device.");
-      setSyncMessage("Your local progress is still here. Sign in again any time to sync.");
+      setSyncMessage("Your local progress is still here. Sign in again any time to sync your boards and anchor.");
       render();
       return;
     }
@@ -708,6 +893,8 @@ if (saveFocusButton) {
   saveFocusButton.addEventListener("click", () => {
     focusAnchor = focusInput ? focusInput.value.trim() : "";
     saveFocusAnchor();
+    if (currentUser) setSyncMessage("Saving your daily anchor to the cloud...");
+    queueCloudSync();
     renderAnchor();
   });
 }
@@ -716,6 +903,8 @@ if (clearFocusButton) {
   clearFocusButton.addEventListener("click", () => {
     focusAnchor = "";
     saveFocusAnchor();
+    if (currentUser) setSyncMessage("Removing your daily anchor from the cloud...");
+    queueCloudSync();
     renderAnchor();
   });
 }
@@ -724,6 +913,8 @@ if (loadSampleButton) {
   loadSampleButton.addEventListener("click", () => {
     focusAnchor = "Clear one task, journal for a few minutes, and move my body a little.";
     saveFocusAnchor();
+    if (currentUser) setSyncMessage("Saving your daily anchor to the cloud...");
+    queueCloudSync();
     renderAnchor();
   });
 }
@@ -766,7 +957,7 @@ if (magicLinkButton) {
         label: `Magic link sent to ${email}. Check your inbox now.`
       });
       setAuthMessage(`Magic link sent to ${email}. Open it on this device to finish sign-in.`);
-      setSyncMessage("Once you’re in, we’ll load your cloud boards here.");
+      setSyncMessage("Once you’re in, we’ll load your cloud boards and daily anchor here.");
       window.setTimeout(() => {
         stopMagicLinkProgress();
       }, 1200);

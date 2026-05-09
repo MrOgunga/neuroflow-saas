@@ -27,6 +27,12 @@ create table if not exists tracker_entries (
   unique (tracker_id, day_index)
 );
 
+create table if not exists daily_anchors (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  content text not null default '',
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
@@ -41,6 +47,7 @@ create table if not exists subscriptions (
 alter table profiles enable row level security;
 alter table trackers enable row level security;
 alter table tracker_entries enable row level security;
+alter table daily_anchors enable row level security;
 alter table subscriptions enable row level security;
 
 create policy "Users can view own profile"
@@ -78,6 +85,11 @@ create policy "Users manage own tracker entries"
         and trackers.user_id = auth.uid()
     )
   );
+
+create policy "Users manage own daily anchor"
+  on daily_anchors for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 create policy "Users view own subscriptions"
   on subscriptions for select

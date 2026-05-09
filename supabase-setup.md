@@ -15,6 +15,9 @@ Open the SQL editor in Supabase and paste:
 
 Run it once.
 
+If you already ran an older version of the schema, run the latest file again so the `daily_anchors`
+table and its policies are added.
+
 ## 3. Turn On Email Auth
 
 Inside Supabase Auth:
@@ -61,7 +64,7 @@ After adding the keys:
 
 - guest mode still works
 - local progress still works
-- signed-in users can move toward cloud sync
+- signed-in users can sync tracker boards and the daily anchor
 
 ## Important Note
 

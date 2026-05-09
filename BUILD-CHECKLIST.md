@@ -20,6 +20,7 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 - [x] magic-link auth trigger is wired
 - [x] signed-in session handling is wired
 - [x] first cloud sync path for tracker tiles is wired
+- [x] simplified hero preview now shows a 365-day year-view customization card
 
 ### In Progress
 
@@ -31,11 +32,11 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 
 ### Next Build Priorities
 
-- [ ] add proper signed-in and signed-out states in the UI
+- [x] add proper signed-in and signed-out states in the UI
 - [ ] let users create custom tile names, icons, and colors more cleanly
 - [ ] add archive and reorder for tiles
 - [ ] decide what stays guest-only and what becomes account-only
-- [ ] store daily anchor in cloud for signed-in users
+- [x] store daily anchor in cloud for signed-in users
 - [ ] add basic onboarding for first-time users
 - [ ] add lightweight settings/profile screen
 
@@ -64,7 +65,7 @@ Neuroflow is a gentle ADHD support app that helps people restart, track small wi
 - [ ] onboarding
 - [ ] settings
 - [ ] cleaner tile management
-- [ ] cloud-backed daily anchor
+- [x] cloud-backed daily anchor
 
 ### Phase 3: Add Useful Daily-Life Support
 
@@ -86,5 +87,6 @@ Right now, the most important immediate move is:
 
 1. test auth and sync in the live app
 2. confirm the mobile experience feels right
-3. then improve the signed-in product experience
-4. then start monetization and publicity setup
+3. refine tile customization so the main board matches the new hero preview promise
+4. then improve the signed-in product experience
+5. then start monetization and publicity setup
