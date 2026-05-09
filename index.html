@@ -6,20 +6,26 @@
     <title>Neuroflow</title>
     <meta
       name="description"
-      content="A calmer progress system for ADHD adults who need visible momentum without guilt."
+      content="A gentle ADHD support app for restarting, tracking small wins, and staying grounded without pressure."
     />
     <meta name="theme-color" content="#06080c" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260508b" />
   </head>
   <body>
     <main class="shell">
       <section class="auth-strip panel">
         <div class="auth-copy">
-          <p class="eyebrow">App Phase</p>
-          <h2>Use it as a guest, or connect your account when you are ready.</h2>
+          <div class="auth-topline">
+            <p class="eyebrow">App Phase</p>
+            <span class="status-pill" id="account-pill">Guest Mode</span>
+          </div>
+          <h2>Keep your progress close, whether you stay local or sync it across devices.</h2>
           <p class="section-note" id="auth-status">
             Guest mode is active. Your progress is currently saved only on this device.
+          </p>
+          <p class="section-note" id="sync-status">
+            Sign in to sync your focus tiles across devices.
           </p>
         </div>
         <div class="auth-actions">
@@ -27,9 +33,10 @@
             id="email-input"
             class="email-input"
             type="email"
-            placeholder="Enter your email for magic link sign-in"
+            placeholder="Enter your email for a magic link"
           />
           <button class="primary-btn" id="magic-link-button">Send Magic Link</button>
+          <button class="ghost-btn" id="sync-now-button" hidden>Sync Now</button>
           <button class="ghost-btn" id="sign-out-button" hidden>Sign Out</button>
         </div>
       </section>
@@ -37,40 +44,71 @@
       <section class="hero-band">
         <div class="hero-copy">
           <p class="eyebrow">Neuroflow</p>
-          <h1>A calmer progress system for ADHD adults who need movement, not pressure.</h1>
+          <h1>Your reset-friendly tracker for real ADHD days.</h1>
           <p class="subcopy">
-            Track tiny wins visually, reset without guilt, and create a homepage that helps your
-            brain restart instead of spiraling.
+            Track small wins, catch your footing fast, and build a rhythm that helps your brain
+            restart instead of shutting down.
           </p>
+          <div class="hero-points">
+            <span class="tag-chip">Visual progress</span>
+            <span class="tag-chip">Gentle resets</span>
+            <span class="tag-chip">Low-pressure structure</span>
+          </div>
           <p class="ios-install-note" id="ios-install-note" hidden>
             On iPhone, open this in Safari and use Share, then Add to Home Screen.
           </p>
           <div class="hero-actions">
-            <button class="primary-btn" id="add-tile-button">Add Focus Tile</button>
+            <button class="primary-btn" id="add-tile-button">Add Tile</button>
             <button class="ghost-btn" id="reset-week-button">Gentle Reset</button>
             <button class="ghost-btn" id="install-app-button" hidden>Install on Desktop</button>
           </div>
         </div>
 
         <div class="hero-widget">
+          <div class="overview-card">
+            <div class="overview-head">
+              <div>
+                <p class="eyebrow">Today</p>
+                <h2 id="overview-title">A steady place to restart</h2>
+              </div>
+              <span class="overview-badge" id="overview-badge">Local</span>
+            </div>
+            <p class="overview-copy" id="overview-copy">
+              Start with one small return point and let the rest stay quiet for a minute.
+            </p>
+            <div class="overview-stats">
+              <article>
+                <span class="label">Weekly wins</span>
+                <strong id="weekly-completions">0</strong>
+              </article>
+              <article>
+                <span class="label">Best streak</span>
+                <strong id="best-streak">0 days</strong>
+              </article>
+              <article>
+                <span class="label">Mode</span>
+                <strong id="storage-mode">Local only</strong>
+              </article>
+            </div>
+          </div>
           <div class="widget-card widget-green">
             <div class="widget-head">
-              <span>🧠</span>
-              <strong>Deep Focus</strong>
+              <span>✅</span>
+              <strong>To-Do List</strong>
             </div>
             <div class="mini-grid" id="focus-preview"></div>
           </div>
           <div class="widget-card widget-blue">
             <div class="widget-head">
-              <span>🏃</span>
-              <strong>Move My Body</strong>
+              <span>📝</span>
+              <strong>Journaling</strong>
             </div>
             <div class="mini-grid" id="tidy-preview"></div>
           </div>
           <div class="widget-card widget-orange">
             <div class="widget-head">
-              <span>📝</span>
-              <strong>Brain Dump</strong>
+              <span>🏃</span>
+              <strong>Exercising</strong>
             </div>
             <div class="mini-grid" id="winddown-preview"></div>
           </div>
@@ -84,9 +122,44 @@
               <p class="eyebrow">Focus Tiles</p>
               <h2>Your momentum board</h2>
             </div>
-            <p class="section-note">Tap each square when you make progress. Missed days are allowed.</p>
+            <p class="section-note">
+              Tap each square when you make progress. Missed days are allowed.
+            </p>
           </div>
           <div class="tile-grid" id="tile-grid"></div>
+          <section class="tile-creator panel-inset">
+            <div class="section-head section-head-tight">
+              <div>
+                <p class="eyebrow">New Tile</p>
+                <h2>Add a steady return point</h2>
+              </div>
+            </div>
+            <div class="tile-creator-grid">
+              <input
+                id="tile-name-input"
+                class="text-input"
+                type="text"
+                maxlength="32"
+                placeholder="To-do list, journaling, exercising..."
+              />
+              <select id="tile-icon-select" class="select-input" aria-label="Choose tile icon">
+                <option value="✨">✨ Spark</option>
+                <option value="🧠">🧠 Focus</option>
+                <option value="🏃">🏃 Move</option>
+                <option value="📝">📝 Clear</option>
+                <option value="💧">💧 Water</option>
+                <option value="🌙">🌙 Rest</option>
+                <option value="🎯">🎯 Target</option>
+                <option value="📘">📘 Read</option>
+              </select>
+              <select id="tile-color-select" class="select-input" aria-label="Choose tile color">
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+                <option value="orange">Orange</option>
+              </select>
+              <button class="primary-btn" id="create-tile-button">Create Tile</button>
+            </div>
+          </section>
           <div class="empty-board" id="empty-board" hidden>
             <p>Your boards are missing right now. Restore the default set and keep going.</p>
             <button class="ghost-btn" id="restore-defaults-button">Restore Default Boards</button>
@@ -105,7 +178,7 @@
             <textarea
               id="focus-input"
               class="focus-input"
-              placeholder="Example: Do deep focus for 20 minutes, move my body, and clear my head with a brain dump."
+              placeholder="Example: Clear my to-do list a bit, journal for a few minutes, and move my body."
             ></textarea>
             <button class="primary-btn full-width" id="save-focus-button">Save Today’s Anchor</button>
           </section>
@@ -125,6 +198,10 @@
               <article class="insight-card">
                 <span class="label">Completions</span>
                 <strong id="total-completions">0</strong>
+              </article>
+              <article class="insight-card">
+                <span class="label">This week</span>
+                <strong id="week-signal">0 check-ins</strong>
               </article>
               <article class="insight-card">
                 <span class="label">Current tone</span>
@@ -176,12 +253,18 @@
           </div>
           <span class="tile-count"></span>
         </div>
+        <div class="tile-range"></div>
+        <div class="weekday-strip"></div>
         <div class="cells"></div>
+        <div class="tile-meta">
+          <span class="tile-meta-label">Current streak</span>
+          <strong class="tile-streak"></strong>
+        </div>
       </article>
     </template>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
-    <script src="app.js"></script>
+    <script src="supabase-config.js?v=20260508b"></script>
+    <script src="app.js?v=20260508b"></script>
   </body>
 </html>

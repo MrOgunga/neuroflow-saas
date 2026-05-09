@@ -56,9 +56,34 @@ textarea {
   margin-bottom: 24px;
 }
 
+.auth-topline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .auth-copy h2 {
   margin: 0;
   font-size: clamp(1.3rem, 2vw, 1.8rem);
+}
+
+.status-pill,
+.tag-chip,
+.overview-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.auth-copy .section-note + .section-note {
+  margin-top: 6px;
 }
 
 .auth-actions {
@@ -135,6 +160,13 @@ textarea {
   margin-top: 26px;
 }
 
+.hero-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 button {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -171,11 +203,55 @@ button:hover {
   align-content: start;
 }
 
+.overview-card,
 .widget-card {
   padding: 18px;
   border-radius: 24px;
   background: var(--panel-2);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.overview-card {
+  padding: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.overview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+
+.overview-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.overview-copy {
+  margin: 16px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.overview-stats article {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.overview-stats strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1rem;
 }
 
 .widget-green {
@@ -253,9 +329,41 @@ button:hover {
 
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
-  gap: 18px;
-  margin-top: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.panel-inset {
+  background: rgba(9, 12, 16, 0.58);
+  border-radius: 22px;
+  padding: 20px;
+}
+
+.tile-creator {
+  margin-top: 18px;
+}
+
+.tile-creator-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 0.8fr 0.8fr auto;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.text-input,
+.select-input {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 12px 14px;
+}
+
+.select-input {
+  appearance: none;
 }
 
 .empty-board {
@@ -271,8 +379,8 @@ button:hover {
 }
 
 .tile-card {
-  border-radius: 28px;
-  padding: 18px;
+  border-radius: 22px;
+  padding: 14px;
   background: rgba(7, 9, 13, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
@@ -286,8 +394,8 @@ button:hover {
   content: "";
   position: absolute;
   inset: 1px 1px auto 1px;
-  height: 42%;
-  border-radius: 26px 26px 18px 18px;
+  height: 38%;
+  border-radius: 20px 20px 16px 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
   pointer-events: none;
 }
@@ -304,11 +412,15 @@ button:hover {
   box-shadow: 0 0 26px rgba(255, 159, 72, 0.13);
 }
 
+.fallback-tile {
+  opacity: 0.98;
+}
+
 .tile-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .tile-title-wrap {
@@ -319,24 +431,65 @@ button:hover {
 
 .tile-title {
   margin: 0;
-  font-size: 1.28rem;
+  font-size: 1.02rem;
 }
 
 .tile-count {
   color: var(--muted);
   font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.tile-range {
+  margin-top: 6px;
+  color: rgba(153, 164, 175, 0.84);
+  font-size: 0.72rem;
+}
+
+.weekday-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.weekday-pill {
+  min-height: 18px;
+  color: rgba(153, 164, 175, 0.72);
+  font-size: 0.66rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.tile-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tile-meta-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.tile-streak {
+  font-size: 0.86rem;
 }
 
 .cells {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-  margin-top: 18px;
+  gap: 7px;
+  margin-top: 14px;
 }
 
 .cell {
   aspect-ratio: 1;
-  border-radius: 9px;
+  border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
@@ -344,7 +497,20 @@ button:hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     inset 0 -10px 14px rgba(0, 0, 0, 0.18);
-  min-height: 34px;
+  min-height: 24px;
+  position: relative;
+  display: grid;
+  place-items: end;
+  padding: 3px;
+  overflow: hidden;
+}
+
+.cell-date {
+  color: rgba(244, 247, 251, 0.68);
+  font-size: 0.58rem;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .cell.active.green {
@@ -435,6 +601,11 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
+  .tile-creator-grid,
+  .overview-stats {
+    grid-template-columns: 1fr;
+  }
+
   .auth-actions {
     justify-content: stretch;
   }
@@ -448,14 +619,30 @@ button:hover {
 @media (max-width: 640px) {
   .shell {
     width: min(100vw - 20px, 1240px);
+    padding: 16px 0 40px;
   }
 
   .hero-copy h1 {
     max-width: none;
+    font-size: 2.1rem;
   }
 
   .section-head {
     display: grid;
+  }
+
+  .panel,
+  .hero-band,
+  .auth-strip {
+    border-radius: 22px;
+  }
+
+  .panel,
+  .hero-band,
+  .auth-strip,
+  .overview-card,
+  .widget-card {
+    padding: 16px;
   }
 
   .hero-actions,
@@ -464,9 +651,40 @@ button:hover {
     display: grid;
   }
 
+  .auth-topline,
+  .overview-head {
+    display: grid;
+  }
+
   .hero-actions button,
   .recovery-actions button,
   .auth-actions button {
     width: 100%;
+  }
+
+  .tile-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .tile-card {
+    padding: 12px;
+  }
+
+  .cells {
+    gap: 6px;
+  }
+
+  .cell {
+    min-height: 22px;
+    padding: 2px;
+  }
+
+  .cell-date {
+    font-size: 0.54rem;
+  }
+
+  .weekday-strip {
+    gap: 6px;
   }
 }

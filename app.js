@@ -1,26 +1,35 @@
-const STORAGE_KEY = "neuroflow_tiles_v4";
-const FOCUS_KEY = "neuroflow_daily_anchor_v3";
+const STORAGE_KEY = "neuroflow_tiles_v5";
+const FOCUS_KEY = "neuroflow_daily_anchor_v4";
 const TOTAL_DAYS = 31;
+const SYNC_DEBOUNCE_MS = 900;
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
+const legacyTileMigrations = {
+  "deep-focus": { id: "to-do-list", name: "To-Do List", icon: "✅", color: "green" },
+  "move-my-body": { id: "journaling", name: "Journaling", icon: "📝", color: "blue" },
+  "brain-dump": { id: "exercising", name: "Exercising", icon: "🏃", color: "orange" }
+};
 
 const defaultTiles = [
   {
-    id: "deep-focus",
-    name: "Deep Focus",
-    icon: "🧠",
+    id: "to-do-list",
+    name: "To-Do List",
+    icon: "✅",
     color: "green",
     cells: [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
   },
   {
-    id: "move-my-body",
-    name: "Move My Body",
-    icon: "🏃",
+    id: "journaling",
+    name: "Journaling",
+    icon: "📝",
     color: "blue",
     cells: [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
   },
   {
-    id: "brain-dump",
-    name: "Brain Dump",
-    icon: "📝",
+    id: "exercising",
+    name: "Exercising",
+    icon: "🏃",
     color: "orange",
     cells: [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1]
   }
@@ -32,6 +41,10 @@ const tilesActive = document.getElementById("tiles-active");
 const totalCompletions = document.getElementById("total-completions");
 const supportMessage = document.getElementById("support-message");
 const addTileButton = document.getElementById("add-tile-button");
+const createTileButton = document.getElementById("create-tile-button");
+const tileNameInput = document.getElementById("tile-name-input");
+const tileIconSelect = document.getElementById("tile-icon-select");
+const tileColorSelect = document.getElementById("tile-color-select");
 const resetWeekButton = document.getElementById("reset-week-button");
 const restoreDefaultsButton = document.getElementById("restore-defaults-button");
 const installAppButton = document.getElementById("install-app-button");
@@ -42,15 +55,30 @@ const focusInput = document.getElementById("focus-input");
 const anchorText = document.getElementById("anchor-text");
 const emailInput = document.getElementById("email-input");
 const magicLinkButton = document.getElementById("magic-link-button");
+const syncNowButton = document.getElementById("sync-now-button");
 const signOutButton = document.getElementById("sign-out-button");
 const authStatus = document.getElementById("auth-status");
+const syncStatus = document.getElementById("sync-status");
+const accountPill = document.getElementById("account-pill");
 const iosInstallNote = document.getElementById("ios-install-note");
 const emptyBoard = document.getElementById("empty-board");
+const weekSignal = document.getElementById("week-signal");
+const weeklyCompletions = document.getElementById("weekly-completions");
+const bestStreak = document.getElementById("best-streak");
+const storageMode = document.getElementById("storage-mode");
+const overviewTitle = document.getElementById("overview-title");
+const overviewCopy = document.getElementById("overview-copy");
+const overviewBadge = document.getElementById("overview-badge");
 
 let deferredPrompt = null;
-let deferredSyncTimer = null;
-let supabase = null;
-let currentSession = null;
+let syncTimer = null;
+let currentUser = null;
+
+const supabaseConfig = window.NEUROFLOW_SUPABASE_CONFIG || {};
+const supabaseClient =
+  window.supabase?.createClient && supabaseConfig.url && supabaseConfig.anonKey
+    ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
+    : null;
 
 function isIosSafari() {
   const ua = window.navigator.userAgent || "";
@@ -61,10 +89,12 @@ function isIosSafari() {
 }
 
 function normalizeTile(tile) {
+  const legacy = legacyTileMigrations[tile.id];
   const cells = Array.isArray(tile.cells) ? [...tile.cells] : [];
   while (cells.length < TOTAL_DAYS) cells.push(0);
   return {
     ...tile,
+    ...(legacy || {}),
     cells: cells.slice(0, TOTAL_DAYS)
   };
 }
@@ -73,18 +103,11 @@ function getDefaultTiles() {
   return defaultTiles.map(normalizeTile);
 }
 
-function ensureTilesExist(candidateTiles) {
-  return Array.isArray(candidateTiles) && candidateTiles.length > 0 ? candidateTiles : getDefaultTiles();
-}
-
 function loadTiles() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : defaultTiles;
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return getDefaultTiles();
-    }
-    return ensureTilesExist(parsed.map(normalizeTile));
+    const parsed = saved ? JSON.parse(saved) : getDefaultTiles();
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed.map(normalizeTile) : getDefaultTiles();
   } catch {
     return getDefaultTiles();
   }
@@ -101,20 +124,48 @@ function loadFocusAnchor() {
 let tiles = loadTiles();
 let focusAnchor = loadFocusAnchor();
 
-function setAuthMessage(message) {
-  authStatus.textContent = message;
-}
-
-function saveTilesLocal() {
+function saveTiles() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tiles));
 }
 
-function saveFocusAnchorLocal() {
+function saveFocusAnchor() {
   localStorage.setItem(FOCUS_KEY, focusAnchor);
+}
+
+function setAuthMessage(message) {
+  if (authStatus) authStatus.textContent = message;
+}
+
+function setSyncMessage(message) {
+  if (syncStatus) syncStatus.textContent = message;
 }
 
 function getCompletionCount() {
   return tiles.reduce((sum, tile) => sum + tile.cells.filter(Boolean).length, 0);
+}
+
+function getWeeklyCompletions() {
+  return tiles.reduce((sum, tile) => {
+    return sum + tile.cells.slice(-7).filter(Boolean).length;
+  }, 0);
+}
+
+function getBestStreak() {
+  let best = 0;
+
+  tiles.forEach((tile) => {
+    let current = 0;
+    tile.cells.forEach((value) => {
+      if (value) {
+        current += 1;
+        best = Math.max(best, current);
+      } else {
+        current = 0;
+      }
+    });
+  });
+
+  return best;
 }
 
 function getSupportCopy(count) {
@@ -124,16 +175,59 @@ function getSupportCopy(count) {
   return "You are building visible proof that you can return.";
 }
 
-function renderStats() {
+function getOverviewState() {
   const total = getCompletionCount();
-  tilesActive.textContent = String(tiles.length);
-  totalCompletions.textContent = String(total);
-  supportMessage.textContent = getSupportCopy(total);
+  const weekly = getWeeklyCompletions();
+
+  if (total === 0) {
+    return {
+      title: "A steady place to restart",
+      copy: "Start with one small return point and let the rest stay quiet for a minute."
+    };
+  }
+
+  if (weekly < 4) {
+    return {
+      title: "You are back in motion",
+      copy: "Small check-ins count here. The goal is to re-enter, not catch up perfectly."
+    };
+  }
+
+  if (weekly < 10) {
+    return {
+      title: "Your rhythm is showing up",
+      copy: "You are building a pattern your future self can return to without starting over."
+    };
+  }
+
+  return {
+    title: "You have visible momentum",
+    copy: "This is what a supportive system feels like: clear, forgiving, and easy to pick back up."
+  };
+}
+
+function renderStats() {
+  if (tilesActive) tilesActive.textContent = String(tiles.length);
+  if (totalCompletions) totalCompletions.textContent = String(getCompletionCount());
+  if (supportMessage) supportMessage.textContent = getSupportCopy(getCompletionCount());
+  if (weekSignal) {
+    const weekly = getWeeklyCompletions();
+    weekSignal.textContent = `${weekly} ${weekly === 1 ? "check-in" : "check-ins"}`;
+  }
+  if (weeklyCompletions) weeklyCompletions.textContent = String(getWeeklyCompletions());
+  if (bestStreak) {
+    const streak = getBestStreak();
+    bestStreak.textContent = `${streak} ${streak === 1 ? "day" : "days"}`;
+  }
+  if (storageMode) storageMode.textContent = currentUser ? "Cloud sync" : "Local only";
+  const overview = getOverviewState();
+  if (overviewTitle) overviewTitle.textContent = overview.title;
+  if (overviewCopy) overviewCopy.textContent = overview.copy;
 }
 
 function renderAnchor() {
-  focusInput.value = focusAnchor;
-  anchorText.textContent = focusAnchor || "You haven’t saved a daily anchor yet.";
+  if (focusInput) focusInput.value = focusAnchor;
+  if (anchorText) anchorText.textContent = focusAnchor || "You haven’t saved a daily anchor yet.";
 }
 
 function buildMiniGrid(id, tile) {
@@ -147,70 +241,67 @@ function buildMiniGrid(id, tile) {
   });
 }
 
-function renderTile(tile) {
-  const fragment = tileTemplate.content.cloneNode(true);
-  const card = fragment.querySelector(".tile-card");
-  const icon = fragment.querySelector(".tile-icon");
-  const title = fragment.querySelector(".tile-title");
-  const count = fragment.querySelector(".tile-count");
-  const cellsWrap = fragment.querySelector(".cells");
+function getTimelineDays() {
+  const days = [];
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
 
-  card.classList.add(tile.color);
-  icon.textContent = tile.icon;
-  title.textContent = tile.name;
-  count.textContent = `${tile.cells.filter(Boolean).length}/${TOTAL_DAYS}`;
+  for (let offset = TOTAL_DAYS - 1; offset >= 0; offset -= 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - offset);
+    days.push({
+      dayNumber: date.getDate(),
+      weekday: WEEKDAY_FORMATTER.format(date).slice(0, 1),
+      fullWeekday: WEEKDAY_FORMATTER.format(date),
+      shortDate: SHORT_DATE_FORMATTER.format(date)
+    });
+  }
 
-  tile.cells.forEach((isActive, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `cell${isActive ? ` active ${tile.color}` : ""}`;
-    button.setAttribute("aria-label", `${tile.name} day ${index + 1}`);
-    button.addEventListener("click", () => toggleCell(tile.id, index));
-    cellsWrap.appendChild(button);
-  });
+  return days;
+}
 
-  return fragment;
+function getTimelineRangeLabel(timelineDays) {
+  if (!timelineDays.length) return "";
+  const first = timelineDays[0];
+  const last = timelineDays[timelineDays.length - 1];
+  return `${first.shortDate} - ${last.shortDate}`;
 }
 
 function renderPreviewWidgets() {
-  const deepFocus = tiles.find((tile) => tile.id === "deep-focus") || tiles[0];
-  const moveMyBody = tiles.find((tile) => tile.id === "move-my-body") || tiles[1] || tiles[0];
-  const brainDump = tiles.find((tile) => tile.id === "brain-dump") || tiles[2] || tiles[0];
-
-  if (deepFocus) buildMiniGrid("focus-preview", deepFocus);
-  if (moveMyBody) buildMiniGrid("tidy-preview", moveMyBody);
-  if (brainDump) buildMiniGrid("winddown-preview", brainDump);
+  const todoList = tiles.find((tile) => tile.id === "to-do-list") || tiles[0];
+  const journaling = tiles.find((tile) => tile.id === "journaling") || tiles[1] || tiles[0];
+  const exercising = tiles.find((tile) => tile.id === "exercising") || tiles[2] || tiles[0];
+  if (todoList) buildMiniGrid("focus-preview", todoList);
+  if (journaling) buildMiniGrid("tidy-preview", journaling);
+  if (exercising) buildMiniGrid("winddown-preview", exercising);
 }
 
-function render() {
-  tiles = ensureTilesExist(tiles);
-  if (emptyBoard) {
-    emptyBoard.hidden = tiles.length > 0;
-  }
-  tileGrid.innerHTML = "";
-  tiles.forEach((tile) => {
-    tileGrid.appendChild(renderTile(tile));
-  });
-  renderStats();
-  renderAnchor();
-  renderPreviewWidgets();
+function updateAuthUi() {
+  const signedIn = Boolean(currentUser);
+
+  if (emailInput) emailInput.hidden = signedIn;
+  if (magicLinkButton) magicLinkButton.hidden = signedIn;
+  if (signOutButton) signOutButton.hidden = !signedIn;
+  if (syncNowButton) syncNowButton.hidden = !signedIn;
+  if (accountPill) accountPill.textContent = signedIn ? "Synced Account" : "Guest Mode";
+  if (overviewBadge) overviewBadge.textContent = signedIn ? "Synced" : "Local";
 }
 
-function scheduleSync() {
-  if (!supabase || !currentSession?.user) return;
-  clearTimeout(deferredSyncTimer);
-  deferredSyncTimer = setTimeout(() => {
-    syncToCloud().catch(() => {
-      setAuthMessage("Cloud sync hit a small issue. Your device copy is still safe.");
-    });
-  }, 250);
+function hasMeaningfulLocalState() {
+  return getCompletionCount() > 0 || focusAnchor.trim().length > 0;
 }
 
-function persistAndRender() {
-  saveTilesLocal();
-  saveFocusAnchorLocal();
-  render();
-  scheduleSync();
+function queueCloudSync() {
+  if (!currentUser || !supabaseClient) return;
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(() => {
+    syncTilesToCloud({ silent: true });
+  }, SYNC_DEBOUNCE_MS);
+}
+
+function persistTiles() {
+  saveTiles();
+  queueCloudSync();
 }
 
 function toggleCell(tileId, cellIndex) {
@@ -220,19 +311,114 @@ function toggleCell(tileId, cellIndex) {
     nextCells[cellIndex] = nextCells[cellIndex] ? 0 : 1;
     return { ...tile, cells: nextCells };
   });
-
-  persistAndRender();
+  persistTiles();
+  render();
 }
 
-function addTile(name) {
+function renderTile(tile) {
+  const fragment = tileTemplate.content.cloneNode(true);
+  const card = fragment.querySelector(".tile-card");
+  const icon = fragment.querySelector(".tile-icon");
+  const title = fragment.querySelector(".tile-title");
+  const count = fragment.querySelector(".tile-count");
+  const tileRange = fragment.querySelector(".tile-range");
+  const weekdayStrip = fragment.querySelector(".weekday-strip");
+  const cellsWrap = fragment.querySelector(".cells");
+  const tileStreak = fragment.querySelector(".tile-streak");
+  const timelineDays = getTimelineDays();
+
+  card.classList.add(tile.color);
+  icon.textContent = tile.icon;
+  title.textContent = tile.name;
+  count.textContent = `${tile.cells.filter(Boolean).length}/${TOTAL_DAYS}`;
+  if (tileRange) tileRange.textContent = getTimelineRangeLabel(timelineDays);
+  if (weekdayStrip) {
+    weekdayStrip.innerHTML = "";
+    timelineDays.slice(0, 7).forEach((day) => {
+      const label = document.createElement("span");
+      label.className = "weekday-pill";
+      label.textContent = day.weekday;
+      weekdayStrip.appendChild(label);
+    });
+  }
+  if (tileStreak) {
+    let best = 0;
+    let current = 0;
+    tile.cells.forEach((value) => {
+      if (value) {
+        current += 1;
+        best = Math.max(best, current);
+      } else {
+        current = 0;
+      }
+    });
+    tileStreak.textContent = `${best} ${best === 1 ? "day" : "days"}`;
+  }
+
+  tile.cells.forEach((isActive, index) => {
+    const dayMeta = timelineDays[index];
+    const button = document.createElement("button");
+    const dateLabel = document.createElement("span");
+    button.type = "button";
+    button.className = `cell${isActive ? ` active ${tile.color}` : ""}`;
+    button.title = `${dayMeta.fullWeekday}, ${dayMeta.shortDate}`;
+    button.setAttribute("aria-label", `${tile.name} ${dayMeta.fullWeekday} ${dayMeta.shortDate}`);
+    dateLabel.className = "cell-date";
+    dateLabel.textContent = String(dayMeta.dayNumber);
+    button.addEventListener("click", () => toggleCell(tile.id, index));
+    button.appendChild(dateLabel);
+    cellsWrap.appendChild(button);
+  });
+
+  return fragment;
+}
+
+function render() {
+  if (!Array.isArray(tiles) || tiles.length === 0) {
+    tiles = getDefaultTiles();
+    saveTiles();
+  }
+
+  if (tileGrid) {
+    tileGrid.innerHTML = "";
+    tiles.forEach((tile) => {
+      tileGrid.appendChild(renderTile(tile));
+    });
+  }
+
+  if (emptyBoard) emptyBoard.hidden = tiles.length > 0;
+  renderStats();
+  renderAnchor();
+  renderPreviewWidgets();
+  updateAuthUi();
+}
+
+function getUniqueTileId(baseSlug) {
+  const fallback = `tile-${Date.now()}`;
+  const root = baseSlug || fallback;
+
+  if (!tiles.some((tile) => tile.id === root)) return root;
+
+  let attempt = 2;
+  let candidate = `${root}-${attempt}`;
+
+  while (tiles.some((tile) => tile.id === candidate)) {
+    attempt += 1;
+    candidate = `${root}-${attempt}`;
+  }
+
+  return candidate;
+}
+
+function addTile(name, iconOverride, colorOverride) {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  const palette = ["green", "blue", "orange"][tiles.length % 3];
+  const palette = colorOverride || ["green", "blue", "orange"][tiles.length % 3];
   const icons = ["✨", "🧠", "🌙", "💧", "📘", "🎯", "📝", "🏃"];
-  const icon = icons[tiles.length % icons.length];
+  const icon = iconOverride || icons[tiles.length % icons.length];
 
   tiles.push(
     normalizeTile({
-      id: slug || `tile-${Date.now()}`,
+      id: getUniqueTileId(slug),
       name,
       icon,
       color: palette,
@@ -240,26 +426,87 @@ function addTile(name) {
     })
   );
 
-  persistAndRender();
+  persistTiles();
+  render();
+}
+
+function handleCreateTile() {
+  const name = tileNameInput ? tileNameInput.value.trim() : "";
+
+  if (!name) {
+    if (tileNameInput) tileNameInput.focus();
+    return;
+  }
+
+  addTile(name, tileIconSelect?.value, tileColorSelect?.value);
+
+  if (tileNameInput) tileNameInput.value = "";
+  if (tileIconSelect) tileIconSelect.value = "✨";
+  if (tileColorSelect) tileColorSelect.value = "green";
+}
+
+function getEmailRedirectUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
 }
 
 async function ensureProfile(user) {
-  if (!supabase || !user) return;
-  await supabase.from("profiles").upsert({
-    id: user.id,
-    display_name: user.email?.split("@")[0] || "Neuroflow User"
-  });
+  if (!supabaseClient || !user) return;
+  await supabaseClient.from("profiles").upsert(
+    {
+      id: user.id
+    },
+    { onConflict: "id" }
+  );
 }
 
-async function syncToCloud() {
-  if (!supabase || !currentSession?.user) return;
-  const user = currentSession.user;
+function mapCloudTiles(trackers = [], entries = []) {
+  const entriesByTracker = new Map();
 
-  await ensureProfile(user);
+  entries.forEach((entry) => {
+    if (!entriesByTracker.has(entry.tracker_id)) {
+      entriesByTracker.set(entry.tracker_id, new Array(TOTAL_DAYS).fill(0));
+    }
+    entriesByTracker.get(entry.tracker_id)[entry.day_index] = entry.completed ? 1 : 0;
+  });
 
-  const trackerRows = tiles.map((tile, index) => ({
+  return trackers.map((tracker) =>
+    normalizeTile({
+      id: tracker.id,
+      name: tracker.title,
+      icon: tracker.icon,
+      color: tracker.color,
+      cells: entriesByTracker.get(tracker.id) || new Array(TOTAL_DAYS).fill(0)
+    })
+  );
+}
+
+async function loadTilesFromCloud(userId) {
+  if (!supabaseClient || !userId) return [];
+
+  const { data: trackers, error: trackerError } = await supabaseClient
+    .from("trackers")
+    .select("id, title, icon, color, position")
+    .eq("user_id", userId)
+    .eq("archived", false)
+    .order("position", { ascending: true });
+
+  if (trackerError) throw trackerError;
+  if (!trackers || trackers.length === 0) return [];
+
+  const trackerIds = trackers.map((tracker) => tracker.id);
+  const { data: entries, error: entryError } = await supabaseClient
+    .from("tracker_entries")
+    .select("tracker_id, day_index, completed")
+    .in("tracker_id", trackerIds);
+
+  if (entryError) throw entryError;
+  return mapCloudTiles(trackers, entries || []);
+}
+
+function buildCloudPayload(userId) {
+  const trackers = tiles.map((tile, index) => ({
     id: tile.id,
-    user_id: user.id,
+    user_id: userId,
     title: tile.name,
     icon: tile.icon,
     color: tile.color,
@@ -267,197 +514,249 @@ async function syncToCloud() {
     archived: false
   }));
 
-  await supabase.from("trackers").upsert(trackerRows);
-
-  const entryRows = [];
+  const entries = [];
   tiles.forEach((tile) => {
-    tile.cells.forEach((completed, dayIndex) => {
-      entryRows.push({
+    tile.cells.forEach((value, dayIndex) => {
+      entries.push({
         tracker_id: tile.id,
         day_index: dayIndex,
-        completed: Boolean(completed)
+        completed: Boolean(value)
       });
     });
   });
 
-  if (entryRows.length) {
-    await supabase.from("tracker_entries").upsert(entryRows, {
-      onConflict: "tracker_id,day_index"
-    });
-  }
-
-  localStorage.setItem("neuroflow_cloud_anchor", focusAnchor);
-  setAuthMessage(`Signed in as ${user.email}. Progress can now sync across devices.`);
+  return { trackers, entries };
 }
 
-async function loadFromCloud() {
-  if (!supabase || !currentSession?.user) return;
-  const user = currentSession.user;
+async function syncTilesToCloud(options = {}) {
+  if (!supabaseClient || !currentUser) return;
 
-  const { data: trackerRows, error: trackerError } = await supabase
-    .from("trackers")
-    .select("id,title,icon,color,position")
-    .eq("user_id", user.id)
-    .eq("archived", false)
-    .order("position", { ascending: true });
+  const { silent = false } = options;
 
-  if (trackerError) throw trackerError;
+  try {
+    if (!silent) setSyncMessage("Syncing your boards to the cloud...");
 
-  if (!trackerRows || trackerRows.length === 0) {
-    tiles = ensureTilesExist(tiles);
-    await syncToCloud();
+    const { trackers, entries } = buildCloudPayload(currentUser.id);
+
+    const { error: trackerError } = await supabaseClient
+      .from("trackers")
+      .upsert(trackers, { onConflict: "id" });
+
+    if (trackerError) throw trackerError;
+
+    const { error: entryError } = await supabaseClient
+      .from("tracker_entries")
+      .upsert(entries, { onConflict: "tracker_id,day_index" });
+
+    if (entryError) throw entryError;
+
+    setSyncMessage("Your focus tiles are synced. Daily anchor still stays local for now.");
+  } catch (error) {
+    console.error(error);
+    setSyncMessage("We couldn’t sync yet. Your progress is still safe on this device.");
+  }
+}
+
+async function hydrateSignedInState(user) {
+  currentUser = user;
+  updateAuthUi();
+
+  if (!supabaseClient || !currentUser) return;
+
+  try {
+    setAuthMessage(`Signed in as ${currentUser.email}.`);
+    setSyncMessage("Checking your cloud boards...");
+
+    await ensureProfile(currentUser);
+    const cloudTiles = await loadTilesFromCloud(currentUser.id);
+
+    if (cloudTiles.length > 0) {
+      tiles = cloudTiles;
+      saveTiles();
+      render();
+      setSyncMessage("Cloud boards loaded on this device.");
+      return;
+    }
+
+    if (hasMeaningfulLocalState()) {
+      await syncTilesToCloud();
+    } else {
+      setSyncMessage("Your account is ready. Start tracking and we’ll sync your boards here.");
+    }
+  } catch (error) {
+    console.error(error);
+    setSyncMessage("Signed in, but cloud loading is not ready yet. Guest progress still works.");
+  }
+}
+
+async function initializeAuth() {
+  if (!supabaseClient) {
+    setAuthMessage("Guest mode is active. Tracker interactions are live on this device.");
+    setSyncMessage("Add working Supabase keys to turn on magic-link sign-in and sync.");
     render();
     return;
   }
 
-  const trackerIds = trackerRows.map((row) => row.id);
-  const { data: entryRows, error: entryError } = await supabase
-    .from("tracker_entries")
-    .select("tracker_id,day_index,completed")
-    .in("tracker_id", trackerIds);
-
-  if (entryError) throw entryError;
-
-  tiles = ensureTilesExist(
-    trackerRows.map((row) => {
-    const base = new Array(TOTAL_DAYS).fill(0);
-    entryRows
-      .filter((entry) => entry.tracker_id === row.id)
-      .forEach((entry) => {
-        base[entry.day_index] = entry.completed ? 1 : 0;
-      });
-
-    return normalizeTile({
-      id: row.id,
-      name: row.title,
-      icon: row.icon,
-      color: row.color,
-      cells: base
-    });
-    })
-  );
-
-  focusAnchor = localStorage.getItem("neuroflow_cloud_anchor") || focusAnchor;
-  saveTilesLocal();
-  saveFocusAnchorLocal();
-  render();
-  setAuthMessage(`Signed in as ${user.email}. Cloud version loaded.`);
-}
-
-function getSupabaseConfig() {
-  return window.NEUROFLOW_SUPABASE_CONFIG || { url: "", anonKey: "" };
-}
-
-async function initSupabase() {
-  const { url, anonKey } = getSupabaseConfig();
-  if (!url || !anonKey || !window.supabase?.createClient) {
-    setAuthMessage("Guest mode is active. Add Supabase keys later to enable sign-in and sync.");
-    return;
-  }
-
-  supabase = window.supabase.createClient(url, anonKey);
-
   const {
     data: { session }
-  } = await supabase.auth.getSession();
+  } = await supabaseClient.auth.getSession();
 
-  currentSession = session;
-  signOutButton.hidden = !currentSession;
-
-  if (currentSession?.user) {
-    await loadFromCloud();
+  if (session?.user) {
+    await hydrateSignedInState(session.user);
   } else {
-    setAuthMessage("Guest mode is active. Sign in when you want your progress across devices.");
+    currentUser = null;
+    updateAuthUi();
+    setAuthMessage("Guest mode is active. Your progress is currently saved only on this device.");
+    setSyncMessage("Sign in to sync your focus tiles across devices.");
   }
 
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    currentSession = session;
-    signOutButton.hidden = !session;
-
-    if (session?.user) {
-      await loadFromCloud();
-    } else {
+  supabaseClient.auth.onAuthStateChange(async (event, sessionData) => {
+    if (event === "SIGNED_OUT") {
+      currentUser = null;
+      updateAuthUi();
       setAuthMessage("Signed out. Guest mode is active on this device.");
+      setSyncMessage("Your local progress is still here. Sign in again any time to sync.");
+      render();
+      return;
+    }
+
+    if (sessionData?.user) {
+      await hydrateSignedInState(sessionData.user);
+    }
+  });
+
+  render();
+}
+
+if (addTileButton) {
+  addTileButton.addEventListener("click", () => {
+    if (tileNameInput) {
+      tileNameInput.focus();
+      tileNameInput.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   });
 }
 
-addTileButton.addEventListener("click", () => {
-  const name = prompt("Name your next focus tile");
-  if (!name) return;
-  addTile(name);
-});
+if (createTileButton) {
+  createTileButton.addEventListener("click", handleCreateTile);
+}
 
-resetWeekButton.addEventListener("click", () => {
-  tiles = tiles.map((tile) => ({ ...tile, cells: tile.cells.map(() => 0) }));
-  persistAndRender();
-});
-
-saveFocusButton.addEventListener("click", () => {
-  focusAnchor = focusInput.value.trim();
-  persistAndRender();
-});
-
-clearFocusButton.addEventListener("click", () => {
-  focusAnchor = "";
-  persistAndRender();
-});
-
-loadSampleButton.addEventListener("click", () => {
-  focusAnchor = "Do deep focus for a bit, move my body, and empty my mind onto the page.";
-  persistAndRender();
-});
-
-restoreDefaultsButton.addEventListener("click", () => {
-  tiles = getDefaultTiles();
-  persistAndRender();
-});
-
-magicLinkButton.addEventListener("click", async () => {
-  if (!supabase) {
-    setAuthMessage("Supabase is not connected yet. You can keep using guest mode for now.");
-    return;
-  }
-
-  const email = emailInput.value.trim();
-  if (!email) {
-    setAuthMessage("Add your email first, then I can send the magic link.");
-    return;
-  }
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: window.location.href
+if (tileNameInput) {
+  tileNameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleCreateTile();
     }
   });
+}
 
-  if (error) {
-    setAuthMessage("Magic link failed to send. Double-check your Supabase setup.");
-    return;
-  }
+if (resetWeekButton) {
+  resetWeekButton.addEventListener("click", () => {
+    tiles = tiles.map((tile) => ({ ...tile, cells: tile.cells.map(() => 0) }));
+    persistTiles();
+    render();
+  });
+}
 
-  setAuthMessage(`Magic link sent to ${email}. Open your email to continue.`);
-});
+if (saveFocusButton) {
+  saveFocusButton.addEventListener("click", () => {
+    focusAnchor = focusInput ? focusInput.value.trim() : "";
+    saveFocusAnchor();
+    renderAnchor();
+  });
+}
 
-signOutButton.addEventListener("click", async () => {
-  if (!supabase) return;
-  await supabase.auth.signOut();
-});
+if (clearFocusButton) {
+  clearFocusButton.addEventListener("click", () => {
+    focusAnchor = "";
+    saveFocusAnchor();
+    renderAnchor();
+  });
+}
+
+if (loadSampleButton) {
+  loadSampleButton.addEventListener("click", () => {
+    focusAnchor = "Clear one task, journal for a few minutes, and move my body a little.";
+    saveFocusAnchor();
+    renderAnchor();
+  });
+}
+
+if (restoreDefaultsButton) {
+  restoreDefaultsButton.addEventListener("click", () => {
+    tiles = getDefaultTiles();
+    persistTiles();
+    render();
+  });
+}
+
+if (magicLinkButton) {
+  magicLinkButton.addEventListener("click", async () => {
+    const email = emailInput ? emailInput.value.trim() : "";
+
+    if (!email) {
+      setAuthMessage("Add your email first and we’ll send the magic link there.");
+      return;
+    }
+
+    if (!supabaseClient) {
+      setAuthMessage("Supabase is not ready yet, so guest mode stays active for now.");
+      return;
+    }
+
+    try {
+      setAuthMessage(`Sending a magic link to ${email}...`);
+      const { error } = await supabaseClient.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: getEmailRedirectUrl()
+        }
+      });
+
+      if (error) throw error;
+      setAuthMessage(`Magic link sent to ${email}. Open it on this device to finish sign-in.`);
+      setSyncMessage("Once you’re in, we’ll load your cloud boards here.");
+    } catch (error) {
+      console.error(error);
+      setAuthMessage("We couldn’t send the magic link yet. Guest mode still works locally.");
+    }
+  });
+}
+
+if (syncNowButton) {
+  syncNowButton.addEventListener("click", async () => {
+    await syncTilesToCloud();
+  });
+}
+
+if (signOutButton) {
+  signOutButton.addEventListener("click", async () => {
+    if (!supabaseClient) return;
+
+    try {
+      await supabaseClient.auth.signOut();
+    } catch (error) {
+      console.error(error);
+      setAuthMessage("We couldn’t sign you out cleanly, but your local progress is still safe.");
+    }
+  });
+}
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredPrompt = event;
-  installAppButton.hidden = false;
+  if (installAppButton) installAppButton.hidden = false;
 });
 
-installAppButton.addEventListener("click", async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  installAppButton.hidden = true;
-});
+if (installAppButton) {
+  installAppButton.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installAppButton.hidden = true;
+  });
+}
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -470,9 +769,9 @@ if (isIosSafari() && iosInstallNote) {
 }
 
 render();
-initSupabase().catch(() => {
-  tiles = ensureTilesExist(tiles);
-  saveTilesLocal();
+initializeAuth().catch((error) => {
+  console.error(error);
+  setAuthMessage("Guest mode is active. Something blocked account setup for now.");
+  setSyncMessage("Your focus tiles still work locally while we sort sync out.");
   render();
-  setAuthMessage("Guest mode is active. Supabase can be connected when you are ready.");
 });

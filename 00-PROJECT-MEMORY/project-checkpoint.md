@@ -28,7 +28,14 @@ GitHub Repo:
 - local storage guest mode
 - app-phase auth strip
 - Supabase-ready sync scaffold
+- real Supabase magic-link trigger
+- signed-in session detection
+- first cloud sync path for tracker tiles
 - SaaS monetization roadmap
+
+## Updated Product Description
+
+Neuroflow is a gentle ADHD support app that helps people restart, track small wins, and stay grounded without the pressure of a traditional productivity tool.
 
 ## Important Files
 
@@ -45,16 +52,18 @@ GitHub Repo:
 
 ## Next Required Step
 
-Set up Supabase:
+Stabilize and ship the first app-phase version:
 
-1. create project
-2. run SQL schema
-3. enable email magic-link auth
-4. add redirect URLs
-5. paste project URL + anon key into `supabase-config.js`
+1. verify magic-link sign-in works fully
+2. verify tracker sync writes and reads correctly
+3. push the latest changes to GitHub
+4. confirm the hosted Vercel build updates correctly
+5. then continue with onboarding, settings, and cloud-backed daily anchor
 
 ## Notes
 
 - guest mode still works without Supabase
-- cloud sync will not work until real Supabase keys are added
+- Supabase keys are now present in `supabase-config.js`
+- the auth email still uses Supabase default branding for now
 - the app is currently a web app / PWA, not a native mobile app yet
+- the new working checklist lives in `BUILD-CHECKLIST.md`
